@@ -215,6 +215,31 @@ canvas {
   margin-bottom: 4px;
 }
 
+.leaderboard-list li.latest-run {
+  background: rgba(255, 204, 68, 0.16);
+  border: 1px solid rgba(255, 204, 68, 0.45);
+  border-radius: 8px;
+  padding: 4px 6px;
+  list-style-position: inside;
+}
+
+.rank-badge {
+  display: inline-block;
+  min-width: 34px;
+  margin-right: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  color: #ffcc44;
+}
+
+.latest-tag {
+  display: inline-block;
+  margin-left: 8px;
+  font-size: 10px;
+  font-weight: 800;
+  color: #ffe8a1;
+}
+
 .gameover-submit {
   margin-top: 12px;
   display: none;
@@ -609,6 +634,7 @@ const LEADERBOARD_LIMIT = 10;
 let _leaderboardClient = null;
 let _lastDeathStats = null;
 let _leaderboardLoadedOnce = false;
+let _lastSubmittedSignature = '';
 
 function escapeHtml(text) {
   return String(text)
@@ -670,12 +696,18 @@ function setLeaderboardStatus(text) {
 function renderLeaderboardRows(rows) {
   const titleList = document.getElementById('titleLeaderboardList');
   const shopList = document.getElementById('shopLeaderboardList');
-  const markup = rows.map((row) => {
+  let highlighted = false;
+  const markup = rows.map((row, idx) => {
     const name = escapeHtml(row.player_name || 'Unknown');
     const wave = Math.max(0, Number(row.wave) || 0);
     const kills = Math.max(0, Number(row.kills) || 0);
     const money = Math.max(0, Number(row.money) || 0);
-    return `<li><strong>${name}</strong>  Wave ${wave}  Kills ${kills}  Money $${money}</li>`;
+    const rowSignature = `${row.player_name || 'Unknown'}|${wave}|${kills}|${money}`;
+    const isLatest = !highlighted && _lastSubmittedSignature && rowSignature === _lastSubmittedSignature;
+    if (isLatest) highlighted = true;
+    const latestClass = isLatest ? ' class="latest-run"' : '';
+    const latestTag = isLatest ? '<span class="latest-tag">Latest run</span>' : '';
+    return `<li${latestClass}><span class="rank-badge">#${idx + 1}</span><strong>${name}</strong>  Wave ${wave}  Kills ${kills}  Money $${money}${latestTag}</li>`;
   }).join('');
   const fallbackMarkup = '<li>No scores yet. Be the first defender.</li>';
   if (titleList) titleList.innerHTML = markup || fallbackMarkup;
@@ -725,6 +757,8 @@ async function submitLeaderboardScore(name, stats) {
     return { ok: false, message: 'Enter a name first.' };
   }
 
+  _lastSubmittedSignature = `${scoreRow.player_name}|${scoreRow.wave}|${scoreRow.kills}|${scoreRow.money}`;
+
   initLeaderboardClient();
 
   if (!_leaderboardClient) {
@@ -737,6 +771,7 @@ async function submitLeaderboardScore(name, stats) {
 
   const { error } = await _leaderboardClient.from(LEADERBOARD_TABLE).insert(scoreRow);
   if (error) {
+    _lastSubmittedSignature = '';
     return { ok: false, message: 'Could not submit to Supabase.' };
   }
   await loadLeaderboard();
