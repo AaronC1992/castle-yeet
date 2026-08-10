@@ -176,6 +176,97 @@ canvas {
 #overlay.game-over-mode .help-btn {
   display: none;
 }
+
+.leaderboard-panel {
+  margin-top: 14px;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(212, 162, 34, 0.35);
+  border-radius: 10px;
+  padding: 12px;
+  text-align: left;
+}
+
+.leaderboard-title {
+  font-size: 13px;
+  font-weight: 800;
+  color: #ffcc44;
+  margin-bottom: 6px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.leaderboard-status {
+  color: #b9b2a8;
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+
+.leaderboard-list {
+  margin: 0;
+  padding-left: 18px;
+  max-height: 176px;
+  overflow-y: auto;
+}
+
+.leaderboard-list li {
+  color: #dfd7cc;
+  font-size: 12px;
+  line-height: 1.45;
+  margin-bottom: 4px;
+}
+
+.gameover-submit {
+  margin-top: 12px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.gameover-submit.visible {
+  display: flex;
+}
+
+.name-input {
+  background: rgba(0, 0, 0, 0.38);
+  border: 1px solid rgba(212, 162, 34, 0.55);
+  border-radius: 8px;
+  color: #fff;
+  padding: 9px 12px;
+  font-size: 14px;
+  min-width: 210px;
+  outline: none;
+}
+
+.name-input:focus {
+  border-color: #ffcc44;
+  box-shadow: 0 0 0 2px rgba(255, 204, 68, 0.25);
+}
+
+.small-menu-btn {
+  padding: 10px 14px;
+  font-size: 13px;
+  background: linear-gradient(180deg, #d43b22 0%, #a8200d 100%);
+  border: 1px solid #ff7755;
+  border-radius: 8px;
+  color: #fff;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+}
+
+.small-menu-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.name-submit-status {
+  width: 100%;
+  text-align: center;
+  color: #d8d0c4;
+  font-size: 12px;
+}
 /* Upgrade shop overlay */
 #shopOverlay {
   position: fixed;
@@ -208,6 +299,13 @@ canvas {
   font-size: 16px;
   color: #aab;
   margin-bottom: 20px;
+}
+.shop-leaderboard {
+  margin-bottom: 16px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 10px;
+  padding: 10px;
 }
 .shop-grid {
   display: grid;
@@ -355,12 +453,27 @@ canvas {
     <p>Wizards auto cast during waves &nbsp; <kbd>F</kbd> Speed toggle</p>
     <p>Between waves, assign your converts to castle towers, each building has different defensive abilities. Survive as many waves as you can!</p>
   </div>
+  <div id="gameOverSubmit" class="gameover-submit">
+    <input id="playerNameInput" class="name-input" maxlength="20" placeholder="Enter your name" />
+    <button id="submitScoreBtn" class="small-menu-btn" onclick="submitScoreFromOverlay()">SUBMIT SCORE</button>
+    <div id="nameSubmitStatus" class="name-submit-status"></div>
+  </div>
+  <div class="leaderboard-panel">
+    <div class="leaderboard-title">Hall of Defenders</div>
+    <div id="titleLeaderboardStatus" class="leaderboard-status">Loading leaderboard...</div>
+    <ol id="titleLeaderboardList" class="leaderboard-list"></ol>
+  </div>
 </div>
 
 <div id="shopOverlay">
   <div class="shop-panel">
     <h2>BETWEEN WAVES</h2>
     <div class="shop-points" id="shopPoints">Points: 0</div>
+    <div class="shop-leaderboard">
+      <div class="leaderboard-title">Hall of Defenders</div>
+      <div id="shopLeaderboardStatus" class="leaderboard-status">Loading leaderboard...</div>
+      <ol id="shopLeaderboardList" class="leaderboard-list"></ol>
+    </div>
     <div class="shop-grid" id="shopGrid"></div>
     <button class="next-wave-btn" onclick="closeShopAndStart()">NEXT WAVE &rarr;</button>
   </div>
@@ -373,6 +486,8 @@ canvas {
   <button class="mobile-game-btn" id="mobileSpeedBtn" onclick="mobileToggleSpeed()">1x</button>
 </div>
 
+<script src="leaderboard-config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 // ============================================================
 // DEFEND YOUR CASTLE
@@ -482,6 +597,181 @@ function playThud() {
   } catch(e) {}
 }
 let game = null;
+
+// ============================================================
+// LEADERBOARD CONFIG
+// ============================================================
+const SUPABASE_URL = window.SUPABASE_URL || 'https://YOUR_PROJECT.supabase.co';
+const SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || 'YOUR_SUPABASE_ANON_KEY';
+const LEADERBOARD_TABLE = 'leaderboard_scores';
+const LOCAL_LEADERBOARD_KEY = 'castleYeetLeaderboardLocal';
+const LEADERBOARD_LIMIT = 10;
+let _leaderboardClient = null;
+let _lastDeathStats = null;
+let _leaderboardLoadedOnce = false;
+
+function escapeHtml(text) {
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function sanitizePlayerName(raw) {
+  const trimmed = (raw || '').trim().replace(/\s+/g, ' ');
+  if (!trimmed) return '';
+  return trimmed.slice(0, 20);
+}
+
+function hasSupabaseConfig() {
+  return SUPABASE_URL.startsWith('https://') && SUPABASE_ANON_KEY && SUPABASE_ANON_KEY !== 'YOUR_SUPABASE_ANON_KEY';
+}
+
+function initLeaderboardClient() {
+  if (_leaderboardClient || !hasSupabaseConfig() || !window.supabase || !window.supabase.createClient) return;
+  _leaderboardClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+}
+
+function getLocalLeaderboard() {
+  try {
+    const raw = localStorage.getItem(LOCAL_LEADERBOARD_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed;
+  } catch (err) {
+    return [];
+  }
+}
+
+function setLocalLeaderboard(rows) {
+  try {
+    localStorage.setItem(LOCAL_LEADERBOARD_KEY, JSON.stringify(rows));
+  } catch (err) {}
+}
+
+function sortLeaderboardRows(rows) {
+  return rows.slice().sort((a, b) => {
+    if ((b.wave || 0) !== (a.wave || 0)) return (b.wave || 0) - (a.wave || 0);
+    if ((b.kills || 0) !== (a.kills || 0)) return (b.kills || 0) - (a.kills || 0);
+    return (b.money || 0) - (a.money || 0);
+  });
+}
+
+function setLeaderboardStatus(text) {
+  const titleStatus = document.getElementById('titleLeaderboardStatus');
+  const shopStatus = document.getElementById('shopLeaderboardStatus');
+  if (titleStatus) titleStatus.textContent = text;
+  if (shopStatus) shopStatus.textContent = text;
+}
+
+function renderLeaderboardRows(rows) {
+  const titleList = document.getElementById('titleLeaderboardList');
+  const shopList = document.getElementById('shopLeaderboardList');
+  const markup = rows.map((row) => {
+    const name = escapeHtml(row.player_name || 'Unknown');
+    const wave = Math.max(0, Number(row.wave) || 0);
+    const kills = Math.max(0, Number(row.kills) || 0);
+    const money = Math.max(0, Number(row.money) || 0);
+    return `<li><strong>${name}</strong>  Wave ${wave}  Kills ${kills}  Money $${money}</li>`;
+  }).join('');
+  const fallbackMarkup = '<li>No scores yet. Be the first defender.</li>';
+  if (titleList) titleList.innerHTML = markup || fallbackMarkup;
+  if (shopList) shopList.innerHTML = markup || fallbackMarkup;
+}
+
+async function loadLeaderboard() {
+  initLeaderboardClient();
+  if (!_leaderboardClient) {
+    const localRows = sortLeaderboardRows(getLocalLeaderboard()).slice(0, LEADERBOARD_LIMIT);
+    renderLeaderboardRows(localRows);
+    setLeaderboardStatus('Leaderboard is using local browser storage. Connect Supabase to sync globally.');
+    _leaderboardLoadedOnce = true;
+    return localRows;
+  }
+
+  const { data, error } = await _leaderboardClient
+    .from(LEADERBOARD_TABLE)
+    .select('player_name, wave, kills, money')
+    .order('wave', { ascending: false })
+    .order('kills', { ascending: false })
+    .order('money', { ascending: false })
+    .limit(LEADERBOARD_LIMIT);
+
+  if (error) {
+    const localRows = sortLeaderboardRows(getLocalLeaderboard()).slice(0, LEADERBOARD_LIMIT);
+    renderLeaderboardRows(localRows);
+    setLeaderboardStatus('Could not reach Supabase, showing local scores.');
+    _leaderboardLoadedOnce = true;
+    return localRows;
+  }
+
+  renderLeaderboardRows(data || []);
+  setLeaderboardStatus('Global leaderboard online.');
+  _leaderboardLoadedOnce = true;
+  return data || [];
+}
+
+async function submitLeaderboardScore(name, stats) {
+  const scoreRow = {
+    player_name: sanitizePlayerName(name),
+    wave: Math.max(0, Number(stats.wave) || 0),
+    kills: Math.max(0, Number(stats.kills) || 0),
+    money: Math.max(0, Number(stats.money) || 0),
+  };
+  if (!scoreRow.player_name) {
+    return { ok: false, message: 'Enter a name first.' };
+  }
+
+  initLeaderboardClient();
+
+  if (!_leaderboardClient) {
+    const localRows = getLocalLeaderboard();
+    localRows.push(scoreRow);
+    setLocalLeaderboard(sortLeaderboardRows(localRows).slice(0, 100));
+    await loadLeaderboard();
+    return { ok: true, message: 'Score saved locally.' };
+  }
+
+  const { error } = await _leaderboardClient.from(LEADERBOARD_TABLE).insert(scoreRow);
+  if (error) {
+    return { ok: false, message: 'Could not submit to Supabase.' };
+  }
+  await loadLeaderboard();
+  return { ok: true, message: 'Score submitted to global leaderboard.' };
+}
+
+async function submitScoreFromOverlay() {
+  if (!_lastDeathStats) return;
+  const input = document.getElementById('playerNameInput');
+  const status = document.getElementById('nameSubmitStatus');
+  const btn = document.getElementById('submitScoreBtn');
+  if (!input || !status || !btn) return;
+  const name = sanitizePlayerName(input.value);
+  if (!name) {
+    status.textContent = 'Enter your name to submit.';
+    return;
+  }
+
+  btn.disabled = true;
+  status.textContent = 'Submitting score...';
+  const result = await submitLeaderboardScore(name, _lastDeathStats);
+  status.textContent = result.message;
+  if (result.ok) {
+    input.disabled = true;
+  } else {
+    btn.disabled = false;
+  }
+}
+
+function openTitleLeaderboard() {
+  if (!_leaderboardLoadedOnce) {
+    setLeaderboardStatus('Loading leaderboard...');
+  }
+  loadLeaderboard();
+}
 
 const GROUND_RATIO = 0.22; // bottom 22% is ground
 function groundY() { return canvas.height * (1 - GROUND_RATIO); }
@@ -3589,6 +3879,7 @@ function openShop() {
   const overlay = document.getElementById('shopOverlay');
   overlay.classList.add('visible');
   updateShop();
+  loadLeaderboard();
 }
 
 function updateShop() {
@@ -3736,13 +4027,33 @@ function startNextWave() {
 }
 
 function gameOver() {
+  _lastDeathStats = {
+    wave: game.wave,
+    kills: game.kills,
+    money: game.score,
+  };
   game.gameOver = true;
   const overlay = document.getElementById('overlay');
   overlay.classList.remove('hidden');
+  overlay.classList.add('game-over-mode');
   overlay.querySelector('h1').textContent = 'CASTLE FALLEN';
-  overlay.querySelector('p').textContent = `Your castle fell on wave ${game.wave}. Total kills: ${game.kills}`;
-  overlay.querySelector('.menu-btn').textContent = 'TRY AGAIN';
+  overlay.querySelector('p').textContent = `Your castle fell on wave ${game.wave}. Total kills: ${game.kills}. Money banked: $${game.score}. Add your name and submit your score.`;
+  overlay.querySelector('.menu-btn').textContent = 'PLAY AGAIN';
   overlay.querySelector('.menu-btn').onclick = () => location.reload();
+
+  const submitWrap = document.getElementById('gameOverSubmit');
+  const input = document.getElementById('playerNameInput');
+  const submitBtn = document.getElementById('submitScoreBtn');
+  const status = document.getElementById('nameSubmitStatus');
+  if (submitWrap) submitWrap.classList.add('visible');
+  if (input) {
+    input.value = '';
+    input.disabled = false;
+    input.focus();
+  }
+  if (submitBtn) submitBtn.disabled = false;
+  if (status) status.textContent = '';
+  loadLeaderboard();
 }
 
 // ============================================================
@@ -3783,63 +4094,6 @@ function getThrowVelocity() {
   return { vx, vy };
 }
 
-function isPointerOnCastleFlag(mx, my) {
-  const cx = castleX();
-  const gy = groundY();
-  const wallH = gy * 0.45;
-  const towerH = wallH + 40;
-  const flagX = cx - 12;
-  const flagY = gy - towerH - 25;
-  // Slightly generous bounds so testing clicks are easy.
-  const minX = flagX - 10;
-  const maxX = flagX + 34;
-  const minY = flagY - 26;
-  const maxY = flagY + 8;
-  return mx >= minX && mx <= maxX && my >= minY && my <= maxY;
-}
-
-function getCloudAtPointer(mx, my) {
-  const w = canvas.width;
-  const cloudOff = game ? game.cloudOffset : 0;
-  const cloudCount = 7;
-  const cloudSpacing = (w + 350) / cloudCount;
-
-  for (let i = 0; i < cloudCount; i++) {
-    const { design, yOffset } = getCloudInstance(i);
-    const cx = ((i * cloudSpacing + cloudOff) % (w + 350)) - 150;
-    const cy = yOffset;
-    const s = design.scale;
-
-    for (const p of design.puffs) {
-      const px = cx + p.ox * s;
-      const py = cy + p.oy * s;
-      const pr = p.r * s;
-      const dx = mx - px;
-      const dy = my - py;
-      if (dx * dx + dy * dy <= pr * pr) {
-        return { x: cx, y: cy };
-      }
-    }
-  }
-  return null;
-}
-
-function spawnRandomCloudEnemy(mx, my) {
-  const cloudSpawnTypes = Object.keys(ENEMY_TYPES).filter(t => t !== 'normal' && t !== 'fast');
-  if (cloudSpawnTypes.length === 0) return;
-  const type = cloudSpawnTypes[Math.floor(Math.random() * cloudSpawnTypes.length)];
-  const e = new Enemy(type, Math.max(1, game.wave));
-  const minX = 20;
-  const maxX = Math.max(minX + 10, castleX() - 120);
-  e.x = Math.max(minX, Math.min(maxX, mx));
-  e.y = terrainYAt(e.x);
-  e.flying = false;
-  e.grabbed = false;
-  e.attacking = false;
-  game.enemies.push(e);
-  game.floatingTexts.push(new FloatingText(e.x, my + 14, `${ENEMY_TYPES[type].name}!`, '#ffffff', 12));
-}
-
 function handlePointerDown(clientX, clientY) {
   if (!game || game.gameOver) return;
 
@@ -3851,34 +4105,6 @@ function handlePointerDown(clientX, clientY) {
   // Click speed button in HUD (top-right area)
   if (my <= 36 && mx >= canvas.width - 140) {
     game.speedMult = game.speedMult >= 3 ? 1 : game.speedMult + 1;
-    return;
-  }
-
-  // Fun cheat: click a cloud to spawn a random non-basic enemy.
-  const cloudHit = getCloudAtPointer(mx, my);
-  if (cloudHit) {
-    spawnRandomCloudEnemy(cloudHit.x, cloudHit.y);
-    return;
-  }
-
-  // Testing shortcut: click the flag to grant points.
-  if (isPointerOnCastleFlag(mx, my)) {
-    const testPoints = 5000;
-    game.score += testPoints;
-    game.convertedUnits += 1;
-    UPGRADES.archery.built = true;
-    UPGRADES.mana.built = true;
-    UPGRADES.demo.built = true;
-    UPGRADES.workshop.built = true;
-    UPGRADES.archery.count += 1;
-    UPGRADES.mana.count += 1;
-    UPGRADES.demo.count += 1;
-    UPGRADES.workshop.count += 1;
-    game.floatingTexts.push(new FloatingText(mx, my - 18, `TEST +${testPoints}`, '#88ff88', 16));
-    game.floatingTexts.push(new FloatingText(mx, my - 36, '+1 CONVERT', '#88ff88', 13));
-    game.floatingTexts.push(new FloatingText(mx, my - 52, '+1 ARCHER  +1 WIZARD', '#88ccff', 12));
-    game.floatingTexts.push(new FloatingText(mx, my - 68, '+1 BOMBER  +1 REPAIR MAN', '#88ccff', 12));
-    if (document.getElementById('shopOverlay').classList.contains('visible')) updateShop();
     return;
   }
 
@@ -4069,8 +4295,16 @@ function syncMobileButtons() {
 // START
 // ============================================================
 function startGame() {
+  const overlay = document.getElementById('overlay');
+  overlay.classList.remove('game-over-mode');
+  const submitWrap = document.getElementById('gameOverSubmit');
+  if (submitWrap) submitWrap.classList.remove('visible');
+  const status = document.getElementById('nameSubmitStatus');
+  if (status) status.textContent = '';
+
   document.getElementById('overlay').classList.add('hidden');
   game = initGame();
+  _lastDeathStats = null;
   _loadOuchSound();
   _loadSplatSound();
   _loadCastleHitSound();
@@ -4088,6 +4322,14 @@ function startGame() {
   startNextWave();
   requestAnimationFrame(gameLoop);
 }
+
+document.getElementById('playerNameInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    submitScoreFromOverlay();
+  }
+});
+
+openTitleLeaderboard();
 
 // Initial render
 render();
