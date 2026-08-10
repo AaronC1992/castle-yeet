@@ -1,15 +1,15 @@
-# Castle Yeet 🏰💥
+# Castle Yeet
 
 A physics-based web arcade game inspired by classic castle defense flash games. Hordes of invading stickmen are marching toward your fortress—grab them with your cursor, fling them high into the sky, drop them onto your castle to convert them into loyal defenders, and build powerful tower upgrades to survive endless waves!
 
 ![Castle Yeet Gameplay](https://img.shields.io/badge/Status-Live-brightgreen) ![License](https://img.shields.io/badge/License-MIT-blue) [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-Donate-ffdd00?style=flat&logo=buy-me-a-coffee&logoColor=black)](https://www.buymeacoffee.com/Aaron92)
 
-🎮 **Play Live:** [https://castle-yeet.vercel.app](https://castle-yeet.vercel.app)  
-☕ **Support Development:** [https://www.buymeacoffee.com/Aaron92](https://www.buymeacoffee.com/Aaron92)
+**Play Live:** [https://castle-yeet.vercel.app](https://castle-yeet.vercel.app)  
+**Support Development:** [https://www.buymeacoffee.com/Aaron92](https://www.buymeacoffee.com/Aaron92)
 
 ---
 
-## 🌟 Key Features
+## Key Features
 
 * **Physics-Based Flinging Mechanics**: Click, drag, and throw enemy stickmen into the stratosphere! Drop them from lethal heights to turn them into bloody splats and crater the battlefield.
 * **Special Enemy Types**:
@@ -32,7 +32,7 @@ A physics-based web arcade game inspired by classic castle defense flash games. 
 
 ---
 
-## 🎮 How to Play
+## How to Play
 
 1. **Defend the Wall**: Click & drag enemy stickmen and fling them upwards into the air.
 2. **Convert Troops**: Once you build a **Temple**, drop grabbed enemies on your castle gate to start converting them.
@@ -41,7 +41,7 @@ A physics-based web arcade game inspired by classic castle defense flash games. 
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 * **Frontend**: HTML5 Canvas, Vanilla JavaScript (ES6+), Web Audio API
 * **Backend / Database**: Supabase (PostgreSQL with Row Level Security)
@@ -49,7 +49,7 @@ A physics-based web arcade game inspired by classic castle defense flash games. 
 
 ---
 
-## 🚀 Local Development
+## Local Development
 
 1. Clone the repository:
    ```bash
@@ -69,7 +69,7 @@ A physics-based web arcade game inspired by classic castle defense flash games. 
 
 ---
 
-## ☕ Support the Project
+## Support the Project
 
 If you enjoy playing Castle Yeet, consider buying me a coffee to support development:
 
@@ -77,6 +77,6 @@ If you enjoy playing Castle Yeet, consider buying me a coffee to support develop
 
 ---
 
-## 📜 License
+## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
