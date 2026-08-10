@@ -1770,7 +1770,7 @@ class Enemy {
           const dy = oy - this.y;
           if (Math.sqrt(dx * dx + dy * dy) < 16 * this.size + 12 * other.size) {
             const hitDamage = 8 + impactSpeed * 0.02;
-            other.takeDamage(hitDamage);
+            other.takeDamage(hitDamage, 'fall_impact');
             this.takeDamage(hitDamage * 0.5);
             if (this.dead && other.dead) {
               playFallingOnAnotherSplat();
@@ -1883,11 +1883,15 @@ class Enemy {
   onDeath(cause = 'normal') {
     game.kills += 1;
     const bonus = game.speedMult > 1 ? game.speedMult : 1;
-    const earned = Math.round(this.points * bonus);
+    const killBonusMult = cause === 'fall_impact' ? 3 : 1;
+    const earned = Math.round(this.points * bonus * killBonusMult);
     game.score += earned;
     game.totalMoney = (game.totalMoney || 0) + earned;
-    const label = bonus > 1 ? `+$${earned} (${bonus}x)` : `+$${earned}`;
-    game.floatingTexts.push(new FloatingText(this.x, this.y - 20, label, bonus > 1 ? '#ffaa22' : '#ffdd44', 16));
+    const label = cause === 'fall_impact'
+      ? `+$${earned} (TRIPLE)`
+      : (bonus > 1 ? `+$${earned} (${bonus}x)` : `+$${earned}`);
+    const labelColor = cause === 'fall_impact' ? '#66ff66' : (bonus > 1 ? '#ffaa22' : '#ffdd44');
+    game.floatingTexts.push(new FloatingText(this.x, this.y - 20, label, labelColor, 16));
     // Blood particles are suppressed for spell-fried deaths.
     if (cause === 'spell') return;
     game.bloodSplats.push(new BloodSplat(this.x, this.size));
@@ -1942,7 +1946,12 @@ class Enemy {
         spawnFriedCorpseFromEnemy(this);
       } else {
         this.dead = true;
-        this.onDeath(source === 'arrow' ? 'arrow' : source === 'explosion' ? 'explosion' : 'normal');
+        this.onDeath(
+          source === 'arrow' ? 'arrow'
+            : source === 'explosion' ? 'explosion'
+            : source === 'fall_impact' ? 'fall_impact'
+            : 'normal'
+        );
       }
     }
   }
@@ -2504,8 +2513,8 @@ class Enemy {
 
     ctx.restore();
 
-    // HP bar for tough enemies
-    if (this.maxHp > 5 && !this.flying) {
+    // HP bar for all grounded enemies
+    if (!this.flying && !this.grabbed) {
       const barW = 24 * s;
       const barH = 3;
       const barY = drawY - bodyLen - headR * 2 - 8;
