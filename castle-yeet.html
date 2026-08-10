@@ -2976,6 +2976,8 @@ function initGame() {
     screenShake: 0,
     archeryTimer: 0,
     wizardTimer: 0,
+    archerAttackAnim: 0,
+    wizardAttackAnim: 0,
     grabbedEnemy: null,
     grabOffsetX: 0,
     grabOffsetY: 0,
@@ -3319,6 +3321,484 @@ function drawGround(ctx) {
   ctx.stroke();
 }
 
+function drawArcheryBastion(ctx, bx, bldgY, count, archerAnim) {
+  ctx.save();
+  ctx.fillStyle = '#6a5a4a';
+  ctx.fillRect(bx - 14, bldgY - 5, 28, 30);
+  ctx.strokeStyle = '#3a2a1a';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(bx - 14, bldgY - 5, 28, 30);
+
+  ctx.fillStyle = '#8b5a2b';
+  ctx.fillRect(bx - 18, bldgY - 12, 36, 8);
+  ctx.fillRect(bx - 18, bldgY - 18, 6, 8);
+  ctx.fillRect(bx - 6, bldgY - 18, 6, 8);
+  ctx.fillRect(bx + 6, bldgY - 18, 6, 8);
+  ctx.fillRect(bx + 12, bldgY - 18, 6, 8);
+
+  ctx.fillStyle = '#221100';
+  ctx.fillRect(bx - 1, bldgY + 2, 2, 10);
+  ctx.fillRect(bx - 4, bldgY + 5, 8, 2);
+
+  if (count > 0) {
+    ctx.fillStyle = '#222';
+    ctx.beginPath();
+    ctx.arc(bx, bldgY + 18, 7, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#d4a222';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+    ctx.fillStyle = '#ffdd44';
+    ctx.font = 'bold 9px Segoe UI';
+    ctx.textAlign = 'center';
+    ctx.fillText(count.toString(), bx, bldgY + 21);
+  }
+
+  if (count > 0) {
+    const archerCount = Math.min(4, Math.max(1, count));
+    const spacing = archerCount > 1 ? 26 / (archerCount - 1) : 0;
+    for (let i = 0; i < archerCount; i++) {
+      const ax = archerCount === 1 ? bx : (bx - 13 + i * spacing);
+      const ay = bldgY - 18;
+      drawArcherUnit(ctx, ax, ay, archerAnim, i);
+    }
+  }
+
+  ctx.restore();
+}
+
+function drawArcherUnit(ctx, x, y, animTime, index) {
+  ctx.save();
+  ctx.translate(x, y);
+
+  const t = animTime > 0 ? animTime / 0.45 : 0;
+  const idleSway = Math.sin((game ? game.time : 0) * 2.5 + index * 1.2) * 1.5;
+
+  ctx.fillStyle = '#5c3a1e';
+  ctx.fillRect(3, -12, 4, 10);
+  ctx.strokeStyle = '#ccaa77';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(4, -14); ctx.lineTo(4, -12);
+  ctx.moveTo(6, -15); ctx.lineTo(6, -12);
+  ctx.stroke();
+
+  ctx.fillStyle = '#ffe0bd';
+  ctx.beginPath();
+  ctx.arc(0, -18 + (t > 0 ? -1 : 0), 3.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#2e6b2e';
+  ctx.beginPath();
+  ctx.arc(0, -19 + (t > 0 ? -1 : 0), 3.8, Math.PI, Math.PI * 2);
+  ctx.fill();
+
+  ctx.strokeStyle = '#e63946';
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.moveTo(1, -21); ctx.lineTo(4, -25);
+  ctx.stroke();
+
+  ctx.strokeStyle = '#2e6b2e';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(0, -14.5);
+  ctx.lineTo(0, -4);
+  ctx.stroke();
+
+  ctx.fillStyle = '#d4a222';
+  ctx.fillRect(-2, -6, 4, 2);
+
+  ctx.strokeStyle = '#3d2612';
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  ctx.moveTo(0, -4); ctx.lineTo(-2 + idleSway * 0.3, 0);
+  ctx.moveTo(0, -4); ctx.lineTo(2 - idleSway * 0.3, 0);
+  ctx.stroke();
+
+  if (t > 0) {
+    const drawBack = t > 0.3;
+    const armX = drawBack ? 5 : -2;
+
+    ctx.strokeStyle = '#8b5a2b';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(-10, -10, 10, -Math.PI * 0.4, Math.PI * 0.4);
+    ctx.stroke();
+
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(-10 + Math.cos(-Math.PI * 0.4)*10, -10 + Math.sin(-Math.PI * 0.4)*10);
+    ctx.lineTo(armX, -10);
+    ctx.lineTo(-10 + Math.cos(Math.PI * 0.4)*10, -10 + Math.sin(Math.PI * 0.4)*10);
+    ctx.stroke();
+
+    ctx.strokeStyle = '#ffe0bd';
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    ctx.moveTo(0, -12); ctx.lineTo(-10, -10);
+    ctx.moveTo(0, -12); ctx.lineTo(armX, -10);
+    ctx.stroke();
+
+    if (drawBack) {
+      ctx.strokeStyle = '#8B4513';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(-16, -10); ctx.lineTo(armX + 2, -10);
+      ctx.stroke();
+      ctx.fillStyle = '#ccc';
+      ctx.beginPath();
+      ctx.moveTo(-18, -10); ctx.lineTo(-15, -12); ctx.lineTo(-15, -8);
+      ctx.closePath();
+      ctx.fill();
+    } else {
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(-16, -10, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else {
+    ctx.strokeStyle = '#8b5a2b';
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    ctx.arc(-6, -8, 8, -Math.PI * 0.3, Math.PI * 0.3);
+    ctx.stroke();
+
+    ctx.strokeStyle = '#ffe0bd';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(0, -12); ctx.lineTo(-6, -8);
+    ctx.moveTo(0, -12); ctx.lineTo(2, -6);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+function drawWizardSpire(ctx, bx, bldgY, count, wizardAnim) {
+  ctx.save();
+
+  const spireW = 26;
+  const spireH = 45;
+  const spireY = bldgY - spireH;
+
+  ctx.fillStyle = '#251b3a';
+  ctx.fillRect(bx - spireW/2, spireY, spireW, spireH);
+  ctx.strokeStyle = '#413266';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(bx - spireW/2, spireY, spireW, spireH);
+
+  ctx.fillStyle = '#180e2b';
+  ctx.beginPath();
+  ctx.moveTo(bx - spireW/2 - 4, spireY);
+  ctx.lineTo(bx, spireY - 24);
+  ctx.lineTo(bx + spireW/2 + 4, spireY);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = '#8855ff';
+  ctx.lineWidth = 1.2;
+  ctx.stroke();
+
+  const pulse = Math.sin((game ? game.time : 0) * 4) * 1.5;
+  ctx.fillStyle = '#00e5ff';
+  ctx.beginPath();
+  ctx.arc(bx, spireY - 26, 3.5 + pulse * 0.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = 'rgba(0, 229, 255, 0.7)';
+  ctx.beginPath();
+  ctx.arc(bx, spireY + 18, 4, Math.PI, 0);
+  ctx.lineTo(bx + 4, spireY + 28);
+  ctx.lineTo(bx - 4, spireY + 28);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = '#392a54';
+  ctx.fillRect(bx - spireW/2 - 6, spireY + 10, spireW + 12, 5);
+  ctx.fillRect(bx - spireW/2 - 6, spireY + 3, 2, 8);
+  ctx.fillRect(bx + spireW/2 + 4, spireY + 3, 2, 8);
+
+  if (count > 0) {
+    ctx.fillStyle = '#180e2b';
+    ctx.beginPath();
+    ctx.arc(bx, spireY + 36, 7, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#00e5ff';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+    ctx.fillStyle = '#88e5ff';
+    ctx.font = 'bold 9px Segoe UI';
+    ctx.textAlign = 'center';
+    ctx.fillText(count.toString(), bx, spireY + 39);
+  }
+
+  if (count > 0) {
+    const wizardCount = Math.min(3, Math.max(1, count));
+    const spacing = wizardCount > 1 ? 22 / (wizardCount - 1) : 0;
+    for (let i = 0; i < wizardCount; i++) {
+      const wx = wizardCount === 1 ? bx : (bx - 11 + i * spacing);
+      const wy = spireY + 3;
+      drawWizardUnit(ctx, wx, wy, wizardAnim, i);
+    }
+  }
+
+  ctx.restore();
+}
+
+function drawWizardUnit(ctx, x, y, animTime, index) {
+  ctx.save();
+  ctx.translate(x, y);
+
+  const casting = animTime > 0;
+  const idleSway = Math.sin((game ? game.time : 0) * 2 + index * 1.5) * 1.2;
+
+  ctx.fillStyle = '#1e1438';
+  ctx.beginPath();
+  ctx.moveTo(0, -12);
+  ctx.lineTo(-5 + idleSway * 0.3, 0);
+  ctx.lineTo(5 - idleSway * 0.3, 0);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.strokeStyle = '#d4a222';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  ctx.fillStyle = '#ffe0bd';
+  ctx.beginPath();
+  ctx.arc(0, -15, 3, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#2b1b4d';
+  ctx.beginPath();
+  ctx.ellipse(0, -16, 5.5, 1.8, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(-3.5, -16);
+  ctx.lineTo(0, -25);
+  ctx.lineTo(3.5, -16);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = '#ffdd44';
+  ctx.fillRect(-0.8, -20, 1.6, 1.8);
+
+  if (casting) {
+    const staffX = 0;
+    const staffTopY = -27;
+
+    ctx.strokeStyle = '#5c3a1e';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(staffX, -10);
+    ctx.lineTo(staffX, staffTopY);
+    ctx.stroke();
+
+    ctx.strokeStyle = '#ffe0bd';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(-2, -11); ctx.lineTo(staffX, -18);
+    ctx.moveTo(2, -11); ctx.lineTo(staffX, -18);
+    ctx.stroke();
+
+    ctx.fillStyle = '#00e5ff';
+    ctx.beginPath();
+    ctx.arc(staffX, staffTopY, 4.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = 'rgba(0, 229, 255, 0.7)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(staffX, staffTopY, 8 + Math.sin(animTime * 20) * 3, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.fillStyle = 'rgba(136, 229, 255, 0.35)';
+    ctx.beginPath();
+    ctx.arc(staffX, staffTopY, 14, 0, Math.PI * 2);
+    ctx.fill();
+  } else {
+    const staffX = -6;
+    const staffTopY = -21;
+
+    ctx.strokeStyle = '#5c3a1e';
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    ctx.moveTo(staffX, 0);
+    ctx.lineTo(staffX, staffTopY);
+    ctx.stroke();
+
+    const orbPulse = Math.sin((game ? game.time : 0) * 3 + index) * 0.8;
+    ctx.fillStyle = '#00d4ff';
+    ctx.beginPath();
+    ctx.arc(staffX, staffTopY, 2.8 + orbPulse * 0.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = '#ffe0bd';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(0, -11); ctx.lineTo(staffX, -9);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+function drawConversionTemple(ctx, bx, bldgY) {
+  ctx.save();
+
+  const w = 34;
+  const h = 32;
+  const y = bldgY - h + 5;
+
+  ctx.fillStyle = '#e8e2d5';
+  ctx.fillRect(bx - w/2, y, w, h);
+  ctx.strokeStyle = '#a39b8c';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(bx - w/2, y, w, h);
+
+  ctx.fillStyle = '#fff8eb';
+  ctx.fillRect(bx - w/2 + 3, y + 6, 4, h - 6);
+  ctx.fillRect(bx - w/2 + 11, y + 6, 4, h - 6);
+  ctx.fillRect(bx + w/2 - 15, y + 6, 4, h - 6);
+  ctx.fillRect(bx + w/2 - 7, y + 6, 4, h - 6);
+
+  ctx.fillStyle = '#ffaa22';
+  ctx.beginPath();
+  ctx.arc(bx, y + 14, 5, Math.PI, 0);
+  ctx.fillRect(bx - 5, y + 14, 10, 8);
+  ctx.fill();
+  ctx.strokeStyle = '#a86611';
+  ctx.lineWidth = 0.8;
+  ctx.stroke();
+
+  ctx.fillStyle = '#e6b800';
+  ctx.beginPath();
+  ctx.arc(bx, y, w/2 - 2, Math.PI, 0);
+  ctx.fill();
+  ctx.strokeStyle = '#b38600';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  const glow = Math.sin((game ? game.time : 0) * 2.5) * 1.5;
+  ctx.strokeStyle = '#ffee66';
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  ctx.moveTo(bx, y - w/2 + 1 - glow); ctx.lineTo(bx, y - w/2 - 7 - glow);
+  ctx.moveTo(bx - 4, y - w/2 - 3 - glow); ctx.lineTo(bx + 4, y - w/2 - 3 - glow);
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+function drawWorkshopForge(ctx, bx, bldgY, count) {
+  ctx.save();
+
+  const w = 28;
+  const h = 24;
+  const y = bldgY - h + 10;
+
+  ctx.fillStyle = '#52483e';
+  ctx.fillRect(bx - w/2, y + 8, w, h - 8);
+  ctx.fillStyle = '#7a5430';
+  ctx.beginPath();
+  ctx.moveTo(bx - w/2 - 3, y + 8);
+  ctx.lineTo(bx, y - 4);
+  ctx.lineTo(bx + w/2 + 3, y + 8);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = '#3a322a';
+  ctx.fillRect(bx + 6, y - 8, 6, 12);
+  const smTime = (game ? game.time : 0) * 3;
+  ctx.fillStyle = 'rgba(200, 200, 200, 0.4)';
+  ctx.beginPath();
+  ctx.arc(bx + 9 + Math.sin(smTime)*2, y - 12 - (smTime % 1)*8, 3 + (smTime % 1)*3, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#1e1a17';
+  ctx.fillRect(bx - 8, y + 16, 7, 4);
+
+  if (count > 0) {
+    const hammerAngle = Math.sin((game ? game.time : 0) * 6);
+    ctx.save();
+    ctx.translate(bx - 4, y + 15);
+    ctx.strokeStyle = '#8b5a2b';
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.moveTo(0, -10); ctx.lineTo(0, -2);
+    ctx.stroke();
+    ctx.fillStyle = '#ffe0bd';
+    ctx.beginPath(); ctx.arc(0, -13, 2.5, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#ffe0bd';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(0, -8);
+    ctx.lineTo(-4, -8 - hammerAngle * 4);
+    ctx.stroke();
+    ctx.fillStyle = '#888';
+    ctx.fillRect(-6, -10 - hammerAngle * 4, 4, 3);
+
+    if (hammerAngle > 0.8) {
+      ctx.fillStyle = '#ffaa22';
+      ctx.fillRect(-7, -2, 2, 2);
+      ctx.fillRect(-3, -4, 1.5, 1.5);
+    }
+    ctx.restore();
+  }
+
+  ctx.restore();
+}
+
+function drawDemolitionHut(ctx, bx, bldgY, count) {
+  ctx.save();
+
+  const w = 26;
+  const h = 24;
+  const y = bldgY - h + 10;
+
+  ctx.fillStyle = '#802d26';
+  ctx.fillRect(bx - w/2, y, w, h);
+  ctx.strokeStyle = '#4a1713';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(bx - w/2, y, w, h);
+
+  ctx.fillStyle = '#2e3238';
+  ctx.fillRect(bx - w/2 - 2, y - 3, w + 4, 4);
+  ctx.fillStyle = '#ffcc00';
+  ctx.fillRect(bx - w/2 + 4, y + 8, 18, 3);
+
+  ctx.fillStyle = '#5c3a1e';
+  ctx.fillRect(bx + 5, y + 12, 7, 10);
+  ctx.fillStyle = '#1e1108';
+  ctx.fillRect(bx + 5, y + 14, 7, 2);
+  ctx.fillRect(bx + 5, y + 18, 7, 2);
+
+  if (count > 0) {
+    ctx.save();
+    ctx.translate(bx - 3, y - 3);
+
+    ctx.strokeStyle = '#222';
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.moveTo(0, -10); ctx.lineTo(0, -2);
+    ctx.stroke();
+
+    ctx.fillStyle = '#ffe0bd';
+    ctx.beginPath(); ctx.arc(0, -13, 2.5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#d92626';
+    ctx.fillRect(-3, -15, 6, 2.5);
+
+    ctx.fillStyle = '#111';
+    ctx.beginPath(); ctx.arc(-5, -6, 3, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = Math.random() < 0.5 ? '#ffcc00' : '#ff4400';
+    ctx.fillRect(-6, -11, 2, 2);
+
+    ctx.restore();
+  }
+
+  ctx.restore();
+}
+
 function drawCastle(ctx) {
   const cx = castleX();
   const gy = groundY();
@@ -3430,61 +3910,25 @@ function drawCastle(ctx) {
   ctx.textAlign = 'center';
   ctx.fillText(`${Math.ceil(game ? game.castleHp : 100)} / ${game ? game.maxCastleHp : 100}`, barX + barW/2, barY + barH + 12);
 
-  // Upgrade buildings displayed on castle
+  // Upgrade buildings & stationed units displayed on castle
   if (game) {
-    const bldgY = gy - towerH + 5;
-    let bx = cx + 15;
+    const wallY = gy - wallH;
+    const availW = Math.max(160, w - cx - 10);
+
     if (UPGRADES.archery.built) {
-      // Mini archer tower
-      ctx.fillStyle = '#8B7355';
-      ctx.fillRect(bx, bldgY + 20, 14, 20);
-      ctx.fillStyle = '#996633';
-      ctx.beginPath();
-      ctx.moveTo(bx - 2, bldgY + 20);
-      ctx.lineTo(bx + 7, bldgY + 10);
-      ctx.lineTo(bx + 16, bldgY + 20);
-      ctx.closePath();
-      ctx.fill();
-      ctx.fillStyle = '#fff';
-      ctx.font = '8px Segoe UI';
-      ctx.textAlign = 'center';
-      ctx.fillText(UPGRADES.archery.count.toString(), bx + 7, bldgY + 34);
+      drawArcheryBastion(ctx, cx - 15, wallY, UPGRADES.archery.count, game.archerAttackAnim || 0);
     }
-    bx += 25;
     if (UPGRADES.mana.built) {
-      // Mana pool
-      ctx.fillStyle = '#4466aa';
-      ctx.beginPath();
-      ctx.ellipse(bx + 7, bldgY + 32, 10, 5, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#6688cc';
-      ctx.beginPath();
-      ctx.ellipse(bx + 7, bldgY + 30, 8, 4, 0, 0, Math.PI * 2);
-      ctx.fill();
+      drawWizardSpire(ctx, cx + availW * 0.22, wallY, UPGRADES.mana.count, game.wizardAttackAnim || 0);
     }
-    bx += 25;
+    if (UPGRADES.temple.built) {
+      drawConversionTemple(ctx, cx + availW * 0.48, wallY);
+    }
     if (UPGRADES.workshop.built) {
-      ctx.fillStyle = '#8B6914';
-      ctx.fillRect(bx, bldgY + 22, 14, 14);
-      // Gear icon
-      ctx.strokeStyle = '#aa8833';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.arc(bx + 7, bldgY + 29, 4, 0, Math.PI * 2);
-      ctx.stroke();
+      drawWorkshopForge(ctx, cx + availW * 0.72, wallY, UPGRADES.workshop.count);
     }
-    bx += 25;
     if (UPGRADES.demo.built) {
-      ctx.fillStyle = '#cc4444';
-      ctx.beginPath();
-      ctx.arc(bx + 7, bldgY + 30, 6, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = '#ffcc00';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.moveTo(bx + 7, bldgY + 24);
-      ctx.lineTo(bx + 7, bldgY + 18);
-      ctx.stroke();
+      drawDemolitionHut(ctx, cx + availW * 0.92, wallY, UPGRADES.demo.count);
     }
 
     // Conversion progress bars above the gate (one per active conversion).
@@ -3618,6 +4062,8 @@ function gameLoop(timestamp) {
   game.time += rawDt;
   game.cloudOffset += 10 * game.speedMult * rawDt;
   game.screenShake = Math.max(0, game.screenShake - dt * 2);
+  game.archerAttackAnim = Math.max(0, (game.archerAttackAnim || 0) - dt);
+  game.wizardAttackAnim = Math.max(0, (game.wizardAttackAnim || 0) - dt);
 
   // Timed round spawning, enemies keep spawning until time runs out.
   if (game.waveActive) {
@@ -3676,6 +4122,7 @@ function gameLoop(timestamp) {
       if (closest) {
         game.arrows.push(new Arrow(towerX, towerY, closest));
         playSwiftArrow();
+        game.archerAttackAnim = 0.45;
       }
     }
   }
@@ -3747,6 +4194,7 @@ function gameLoop(timestamp) {
         const spellY = closest.flying ? closest.y : groundY() - 12 * closest.size;
         game.spellZones.push(new SpellZone(closest.x, spellY, UPGRADES.mana.count));
         playWizardCast();
+        game.wizardAttackAnim = 0.65;
         for (let j = 0; j < 8; j++) {
           const a = Math.random() * Math.PI * 2;
           game.particles.push(new Particle(closest.x, spellY, Math.cos(a) * 70, Math.sin(a) * 70, '#88ccff', 0.45, 3));
@@ -4067,6 +4515,9 @@ function startNextWave() {
   game.roundTimeLeft = game.roundDuration;
   game.waveActive = true;
   game.wizardTimer = 0;
+  game.archeryTimer = 0;
+  game.archerAttackAnim = 0;
+  game.wizardAttackAnim = 0;
   syncMobileButtons();
 }
 
