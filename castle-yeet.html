@@ -292,6 +292,37 @@ canvas {
   color: #d8d0c4;
   font-size: 12px;
 }
+
+.bmc-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #FFDD00;
+  color: #000000;
+  border: 1px solid #000000;
+  border-radius: 8px;
+  padding: 8px 18px;
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: none;
+  letter-spacing: 0.5px;
+  box-shadow: 0 4px 14px rgba(255, 221, 0, 0.35);
+  transition: all 0.2s;
+  margin-top: 8px;
+}
+
+.bmc-btn:hover {
+  background: #ffe533;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 221, 0, 0.55);
+  color: #000000;
+}
+
+.shop-bmc-wrap {
+  text-align: center;
+  margin-bottom: 12px;
+}
 /* Upgrade shop overlay */
 #shopOverlay {
   position: fixed;
@@ -471,6 +502,7 @@ canvas {
   <p>Hordes of stick figures are coming. Throw them into the sky to destroy them. Build a Temple, then drop enemies on your castle to convert them into troops. Assign converts to towers between waves.</p>
   <button class="menu-btn" onclick="startGame()">DEFEND!</button>
   <button class="help-btn" onclick="document.getElementById('helpPanel').classList.toggle('show')">How to Play</button>
+  <a href="https://www.buymeacoffee.com/Aaron92" target="_blank" rel="noopener noreferrer" class="bmc-btn">☕ Buy me a coffee</a>
   <div id="helpPanel">
     <h2>How to Play</h2>
     <p>Click and drag enemies to grab them, then fling them into the sky to destroy them. Build a Temple first, then drop enemies on your castle to convert them into troops!</p>
@@ -500,6 +532,9 @@ canvas {
       <ol id="shopLeaderboardList" class="leaderboard-list"></ol>
     </div>
     <div class="shop-grid" id="shopGrid"></div>
+    <div class="shop-bmc-wrap">
+      <a href="https://www.buymeacoffee.com/Aaron92" target="_blank" rel="noopener noreferrer" class="bmc-btn">☕ Support the game, buy me a coffee</a>
+    </div>
     <button class="next-wave-btn" onclick="closeShopAndStart()">NEXT WAVE &rarr;</button>
   </div>
 </div>

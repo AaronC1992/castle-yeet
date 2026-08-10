@@ -2,9 +2,10 @@
 
 A physics-based web arcade game inspired by classic castle defense flash games. Hordes of invading stickmen are marching toward your fortress—grab them with your cursor, fling them high into the sky, drop them onto your castle to convert them into loyal defenders, and build powerful tower upgrades to survive endless waves!
 
-![Castle Yeet Gameplay](https://img.shields.io/badge/Status-Live-brightgreen) ![License](https://img.shields.io/badge/License-MIT-blue)
+![Castle Yeet Gameplay](https://img.shields.io/badge/Status-Live-brightgreen) ![License](https://img.shields.io/badge/License-MIT-blue) [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-Donate-ffdd00?style=flat&logo=buy-me-a-coffee&logoColor=black)](https://www.buymeacoffee.com/Aaron92)
 
-🎮 **Play Live:** [https://castle-yeet.vercel.app](https://castle-yeet.vercel.app)
+🎮 **Play Live:** [https://castle-yeet.vercel.app](https://castle-yeet.vercel.app)  
+☕ **Support Development:** [https://www.buymeacoffee.com/Aaron92](https://www.buymeacoffee.com/Aaron92)
 
 ---
 
@@ -65,6 +66,14 @@ A physics-based web arcade game inspired by classic castle defense flash games. 
      window.SUPABASE_URL = 'https://YOUR_PROJECT.supabase.co';
      window.SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
      ```
+
+---
+
+## ☕ Support the Project
+
+If you enjoy playing Castle Yeet, consider buying me a coffee to support development:
+
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-Donate-ffdd00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://www.buymeacoffee.com/Aaron92)
 
 ---
 
