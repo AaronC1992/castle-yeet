@@ -1788,36 +1788,7 @@ class Enemy {
       this.y += this.throwVY * dt;
       this.throwVY += 900 * dt; // gravity
 
-      // Classic-style chain impact: only count true slam drops, not light touch placements.
-      const impactSpeed = Math.sqrt(this.throwVX * this.throwVX + this.throwVY * this.throwVY);
-      const fallDistance = Math.max(0, this.y - this.peakY);
-      const isTrueSlam = this.throwVY > 240 && fallDistance > 36;
-      if (impactSpeed > 220 && isTrueSlam) {
-        for (const other of game.enemies) {
-          if (other === this || other.dead || other.grabbed || other.flying) continue;
-          const oy = terrainYAt(other.x) - 8;
-          const dx = other.x - this.x;
-          const dy = oy - this.y;
-          if (Math.sqrt(dx * dx + dy * dy) < 16 * this.size + 12 * other.size) {
-            const hitDamage = 8 + impactSpeed * 0.02;
-            other.takeDamage(hitDamage, 'fall_impact');
-            this.takeDamage(hitDamage * 0.5);
-            if (this.dead && other.dead) {
-              playFallingOnAnotherSplat();
-            }
-            game.screenShake = Math.max(game.screenShake, 0.18);
-            for (let i = 0; i < 5; i++) {
-              game.particles.push(new Particle(
-                this.x, this.y,
-                (Math.random() - 0.5) * 120,
-                -40 - Math.random() * 60,
-                '#aa4444', 0.25 + Math.random() * 0.2, 2
-              ));
-            }
-            break;
-          }
-        }
-      }
+      // Midair touch damage is disabled to prevent instant collision exploits.
 
       // Track peak height
       if (this.y < this.peakY) this.peakY = this.y;
@@ -1845,6 +1816,29 @@ class Enemy {
         if (fallDamage >= this.hp) {
           // Lethal fall
           this.dead = true;
+          // A lethal fall can crush one nearby grounded enemy.
+          let crushed = null;
+          let crushDist = Infinity;
+          for (const other of game.enemies) {
+            if (other === this || other.dead || other.grabbed || other.flying) continue;
+            const oy = terrainYAt(other.x) - 8;
+            const dx = other.x - this.x;
+            const dy = oy - this.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            const crushRange = 16 * this.size + 12 * other.size;
+            if (dist < crushRange && dist < crushDist) {
+              crushDist = dist;
+              crushed = other;
+            }
+          }
+          if (crushed) {
+            const crushDamage = 8 + Math.max(0, fallHeight - safeDrop) * 0.18;
+            crushed.takeDamage(crushDamage, 'fall_impact');
+            if (crushed.dead) {
+              playFallingOnAnotherSplat();
+            }
+            game.screenShake = Math.max(game.screenShake, 0.18);
+          }
           this.onDeath();
           playSplat(this.size);
           // Splat particles
