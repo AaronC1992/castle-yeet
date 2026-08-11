@@ -1034,7 +1034,7 @@ const UPGRADES = {
   archery: {
     name: 'Guys With Bows',
     desc: 'Assign converts as archers. They auto-shoot arrows at enemies. More archers = faster firing.',
-    buildCost: 8000,
+    buildCost: 5000,
     unitCost: 0,
     unitName: 'Archer',
     upkeep: 15, // pts per archer per wave
@@ -3921,23 +3921,6 @@ function drawCastle(ctx) {
     }
   }
 
-  // HP bar
-  const barW = 80;
-  const barH = 8;
-  const barX = cx + wallW/2 - 40;
-  const barY = wallY - 20;
-  ctx.fillStyle = '#222';
-  ctx.fillRect(barX, barY, barW, barH);
-  ctx.strokeStyle = '#555';
-  ctx.lineWidth = 1;
-  ctx.strokeRect(barX, barY, barW, barH);
-  ctx.fillStyle = hpRatio > 0.5 ? '#44cc44' : hpRatio > 0.25 ? '#cccc44' : '#cc4444';
-  ctx.fillRect(barX + 1, barY + 1, (barW - 2) * hpRatio, barH - 2);
-  ctx.fillStyle = '#fff';
-  ctx.font = 'bold 10px Segoe UI';
-  ctx.textAlign = 'center';
-  ctx.fillText(`${Math.ceil(game ? game.castleHp : 100)} / ${game ? game.maxCastleHp : 100}`, barX + barW/2, barY + barH + 12);
-
   // Upgrade buildings & stationed units displayed on castle
   if (game) {
     const wallY = gy - wallH;
@@ -3987,6 +3970,23 @@ function drawCastle(ctx) {
     }
 
   }
+
+  // HP bar (drawn last so towers cannot cover it)
+  const barW = 80;
+  const barH = 8;
+  const barX = cx + wallW/2 - 40;
+  const barY = wallY - 20;
+  ctx.fillStyle = '#222';
+  ctx.fillRect(barX, barY, barW, barH);
+  ctx.strokeStyle = '#555';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(barX, barY, barW, barH);
+  ctx.fillStyle = hpRatio > 0.5 ? '#44cc44' : hpRatio > 0.25 ? '#cccc44' : '#cc4444';
+  ctx.fillRect(barX + 1, barY + 1, (barW - 2) * hpRatio, barH - 2);
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 10px Segoe UI';
+  ctx.textAlign = 'center';
+  ctx.fillText(`${Math.ceil(game ? game.castleHp : 100)} / ${game ? game.maxCastleHp : 100}`, barX + barW/2, barY + barH + 12);
 }
 
 function drawHUD(ctx) {
