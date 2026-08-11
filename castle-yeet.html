@@ -1788,9 +1788,11 @@ class Enemy {
       this.y += this.throwVY * dt;
       this.throwVY += 900 * dt; // gravity
 
-      // Classic-style chain impact: thrown enemies can smash grounded enemies.
+      // Classic-style chain impact: only count true slam drops, not light touch placements.
       const impactSpeed = Math.sqrt(this.throwVX * this.throwVX + this.throwVY * this.throwVY);
-      if (impactSpeed > 220) {
+      const fallDistance = Math.max(0, this.y - this.peakY);
+      const isTrueSlam = this.throwVY > 240 && fallDistance > 36;
+      if (impactSpeed > 220 && isTrueSlam) {
         for (const other of game.enemies) {
           if (other === this || other.dead || other.grabbed || other.flying) continue;
           const oy = terrainYAt(other.x) - 8;
