@@ -1024,7 +1024,7 @@ const UPGRADES = {
   temple: {
     name: 'Stickman Rehabilitation Facility',
     desc: 'Required to convert enemies into your troops. Drop captured enemies on the castle to convert them.',
-    buildCost: 5000,
+    buildCost: 2000,
     unitCost: 0,
     unitName: null,
     upkeep: 0,
@@ -1100,6 +1100,13 @@ const BASE_CONVERSION_SLOTS = 1;
 const MAX_CONVERSION_SLOTS = 10;
 const CONVERSION_DURATION_SECONDS = 50;
 const MAX_TOWER_DAMAGE_LEVEL = 10;
+const GAME_TIPS = [
+  'TIP: Increase game speed for higher payouts and faster rounds.',
+  'TIP: Repair the castle often so your converts stay safe and your defense lasts longer.',
+  'TIP: Build a temple early, then convert enemies between waves to grow your army.',
+  'TIP: Archers, wizards, and bombers all shine when you assign them before the next wave.',
+  'TIP: Keep the battlefield clean so you can spot incoming threats more easily.'
+];
 
 // ============================================================
 // CLASSES
@@ -3014,6 +3021,8 @@ function initGame() {
     prevMouseY: 0,
     dayNight: 0, // 0=day, cycles
     speedMult: 1, // 1x, 2x, 3x
+    tipRotationTimer: 0,
+    activeTipIndex: 0,
     maxConversionSlots: BASE_CONVERSION_SLOTS,
     converting: [],      // enemies being converted {timer, maxTimer}
     convertedUnits: 0,   // available converts to assign
@@ -4062,13 +4071,22 @@ function drawHUD(ctx) {
     }
   }
 
-  // Instructions
+  // Tip area
   if (game.waveActive) {
-    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    const tipBoxW = Math.min(620, w * 0.86);
+    const tipBoxX = (w - tipBoxW) / 2;
+    const tipBoxY = canvas.height - 42;
+    ctx.fillStyle = 'rgba(8, 12, 20, 0.78)';
+    ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+    ctx.lineWidth = 1;
+    ctx.fillRect(tipBoxX, tipBoxY, tipBoxW, 28);
+    ctx.strokeRect(tipBoxX, tipBoxY, tipBoxW, 28);
+
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
     ctx.font = '11px Segoe UI';
     ctx.textAlign = 'center';
-    const hint = 'Grab enemies & throw them! Drop on castle to convert!  |  [F] Speed';
-    ctx.fillText(hint, w / 2, canvas.height - 10);
+    const tip = GAME_TIPS[game.activeTipIndex % GAME_TIPS.length];
+    ctx.fillText(tip, w / 2, canvas.height - 24);
   }
 }
 
@@ -4090,6 +4108,13 @@ function gameLoop(timestamp) {
   game.time += rawDt;
   game.cloudOffset += 10 * game.speedMult * rawDt;
   game.screenShake = Math.max(0, game.screenShake - dt * 2);
+  if (game.waveActive) {
+    game.tipRotationTimer += rawDt;
+    if (game.tipRotationTimer >= 4.5) {
+      game.tipRotationTimer = 0;
+      game.activeTipIndex = (game.activeTipIndex + 1) % GAME_TIPS.length;
+    }
+  }
   game.archerAttackAnim = Math.max(0, (game.archerAttackAnim || 0) - dt);
   game.wizardAttackAnim = Math.max(0, (game.wizardAttackAnim || 0) - dt);
 
