@@ -857,14 +857,14 @@ function castleX() { return canvas.width * 0.82; }
 // ENEMY DEFINITIONS
 // ============================================================
 const ENEMY_TYPES = {
-  normal:   { hp: 3, speed: 1, size: 1, color: '#222', damage: 5, points: 10, canThrow: true, name: 'Soldier' },
-  fast:     { hp: 2, speed: 2, color: '#882222', size: 0.9, damage: 3, points: 15, canThrow: true, name: 'Runner' },
+  normal:   { hp: 3, speed: 1, size: 1, color: '#222', damage: 5, points: 15, canThrow: true, name: 'Soldier' },
+  fast:     { hp: 2, speed: 2, color: '#882222', size: 0.9, damage: 3, points: 20, canThrow: true, name: 'Runner' },
   armored:  { hp: 8, speed: 0.6, color: '#445566', size: 1.2, damage: 10, points: 30, canThrow: true, name: 'Knight' },
   giant:    { hp: 30, speed: 0.35, color: '#553322', size: 2.2, damage: 30, points: 100, canThrow: false, name: 'Brute' },
   ram:      { hp: 15, speed: 0.8, color: '#664400', size: 1.4, damage: 25, points: 50, canThrow: true, name: 'Ram Bearer' },
   giant_stickman: { hp: 48, speed: 0.3, color: '#3a2a1f', size: 2.6, damage: 42, points: 160, canThrow: false, name: 'Elite Brute' },
-  shield:   { hp: 12, speed: 0.75, color: '#3d4d66', size: 1.15, damage: 12, points: 38, canThrow: true, name: 'Shield Bearer' },
-  berserker:{ hp: 6, speed: 1.55, color: '#993333', size: 1.05, damage: 9, points: 28, canThrow: true, name: 'Berserker' },
+  shield:   { hp: 12, speed: 0.75, color: '#3d4d66', size: 1.15, damage: 12, points: 40, canThrow: true, name: 'Shield Bearer' },
+  berserker:{ hp: 6, speed: 1.55, color: '#993333', size: 1.05, damage: 9, points: 35, canThrow: true, name: 'Berserker' },
   mega_giant: { hp: 110, speed: 0.22, color: '#2f5eff', size: 5.2, damage: 70, points: 320, canThrow: false, name: 'Titan Giant' },
 };
 
@@ -1041,6 +1041,11 @@ const UPGRADES = {
     built: false,
     count: 0,
     convertBased: true,
+    damageUpgradeable: true,
+    damageLevel: 0,
+    damagePerLevel: 0.5,
+    damageUpgradeBaseCost: 2500,
+    damageUpgradeStep: 1400,
   },
   mana: {
     name: 'Suspicious Wizard Stuff',
@@ -1052,6 +1057,11 @@ const UPGRADES = {
     built: false,
     count: 0,
     convertBased: true,
+    damageUpgradeable: true,
+    damageLevel: 0,
+    damagePerLevel: 0.2,
+    damageUpgradeBaseCost: 7000,
+    damageUpgradeStep: 3200,
   },
   workshop: {
     name: 'Unpaid Maintenance Crew',
@@ -1085,6 +1095,11 @@ const UPGRADES = {
     count: 0,
   },
 };
+
+const BASE_CONVERSION_SLOTS = 1;
+const MAX_CONVERSION_SLOTS = 10;
+const CONVERSION_DURATION_SECONDS = 50;
+const MAX_TOWER_DAMAGE_LEVEL = 10;
 
 // ============================================================
 // CLASSES
@@ -2553,11 +2568,11 @@ class Enemy {
 }
 
 class Arrow {
-  constructor(x, y, targetEnemy) {
+  constructor(x, y, targetEnemy, damage = 1) {
     this.x = x; this.y = y;
     this.target = targetEnemy;
     this.speed = 500;
-    this.damage = 1;
+    this.damage = damage;
     this.dead = false;
     this.homing = true;
     this.vx = 0;
@@ -2716,11 +2731,11 @@ class Bomber {
 }
 
 class SpellZone {
-  constructor(x, y, wizardCount) {
+  constructor(x, y, wizardCount, damageMult = 1) {
     this.x = x;
     this.y = y;
     this.radius = 35 + wizardCount * 8;
-    this.dps = 1.5 + wizardCount * 0.8;
+    this.dps = (1.5 + wizardCount * 0.8) * damageMult;
     // Keep attack visuals brief so only corpse smolder persists.
     this.life = 0.55 + wizardCount * 0.12;
     this.maxLife = this.life;
@@ -2959,6 +2974,9 @@ function initGame() {
   for (const key in UPGRADES) {
     UPGRADES[key].built = key === 'wall';
     UPGRADES[key].count = 0;
+    if (typeof UPGRADES[key].damageLevel === 'number') {
+      UPGRADES[key].damageLevel = 0;
+    }
   }
 
   return {
@@ -3000,6 +3018,7 @@ function initGame() {
     prevMouseY: 0,
     dayNight: 0, // 0=day, cycles
     speedMult: 1, // 1x, 2x, 3x
+    maxConversionSlots: BASE_CONVERSION_SLOTS,
     converting: [],      // enemies being converted {timer, maxTimer}
     convertedUnits: 0,   // available converts to assign
     spellZones: [],      // active magic damage zones
@@ -3955,7 +3974,7 @@ function drawCastle(ctx) {
       ctx.fillStyle = '#aef';
       ctx.font = 'bold 9px Segoe UI';
       ctx.textAlign = 'center';
-      ctx.fillText(`Converting x${game.converting.length}`, gateCenterX, barY2 - 4);
+      ctx.fillText(`Converting x${game.converting.length}/${game.maxConversionSlots}`, gateCenterX, barY2 - 4);
 
       for (let ci = 0; ci < game.converting.length; ci++) {
         const ratio = Math.max(0, Math.min(1, game.converting[ci].timer / game.converting[ci].maxTimer));
@@ -4043,7 +4062,7 @@ function drawHUD(ctx) {
 
     if (game.converting.length > 0 || game.convertedUnits > 0) {
       ctx.fillStyle = '#88ff88';
-      ctx.fillText(`Converting: ${game.converting.length} | Ready: ${game.convertedUnits}`, rx2, 41);
+      ctx.fillText(`Converting: ${game.converting.length}/${game.maxConversionSlots} | Ready: ${game.convertedUnits}`, rx2, 41);
     }
   }
 
@@ -4133,7 +4152,8 @@ function gameLoop(timestamp) {
         if (d < closestDist) { closestDist = d; closest = e; }
       }
       if (closest) {
-        game.arrows.push(new Arrow(towerX, towerY, closest));
+        const archerDamage = 1 + UPGRADES.archery.damageLevel * UPGRADES.archery.damagePerLevel;
+        game.arrows.push(new Arrow(towerX, towerY, closest, archerDamage));
         playSwiftArrow();
         game.archerAttackAnim = 0.45;
       }
@@ -4205,7 +4225,8 @@ function gameLoop(timestamp) {
       }
       if (closest) {
         const spellY = closest.flying ? closest.y : groundY() - 12 * closest.size;
-        game.spellZones.push(new SpellZone(closest.x, spellY, UPGRADES.mana.count));
+        const wizardDamageMult = 1 + UPGRADES.mana.damageLevel * UPGRADES.mana.damagePerLevel;
+        game.spellZones.push(new SpellZone(closest.x, spellY, UPGRADES.mana.count, wizardDamageMult));
         playWizardCast();
         game.wizardAttackAnim = 0.65;
         for (let j = 0; j < 8; j++) {
@@ -4429,24 +4450,44 @@ function updateShop() {
 
     let btns = '';
     if (key === 'temple') {
-      btns = u.built
-        ? `<button class="shop-btn" disabled>BUILT</button>`
-        : `<button class="shop-btn" ${game.score >= u.buildCost ? '' : 'disabled'} onclick="buyBuilding('temple')">BUILD (${u.buildCost} pts)</button>`;
+      if (!u.built) {
+        btns = `<button class="shop-btn" ${game.score >= u.buildCost ? '' : 'disabled'} onclick="buyBuilding('temple')">BUILD (${u.buildCost} pts)</button>`;
+      } else if (game.maxConversionSlots >= MAX_CONVERSION_SLOTS) {
+        btns = `<button class="shop-btn" disabled>MAX CONVERSION SLOTS</button>`;
+      } else {
+        const slotCost = getConversionSlotUpgradeCost();
+        btns = `<button class="shop-btn" ${game.score >= slotCost ? '' : 'disabled'} onclick="buyConversionSlot()">UPGRADE CONVERSION SLOTS (${slotCost} pts)</button>`;
+      }
     } else if (!u.built) {
       btns = `<button class="shop-btn" ${game.score >= u.buildCost ? '' : 'disabled'} onclick="buyBuilding('${key}')">BUILD (${u.buildCost} pts)</button>`;
     } else if (u.convertBased) {
       btns = `<button class="shop-btn" ${game.convertedUnits > 0 ? '' : 'disabled'} onclick="assignConvert('${key}')">ASSIGN CONVERT (+1 ${u.unitName})</button>`;
+      if (u.damageUpgradeable) {
+        if (u.damageLevel >= MAX_TOWER_DAMAGE_LEVEL) {
+          btns += `<button class="shop-btn" disabled>MAX ${u.unitName.toUpperCase()} DAMAGE</button>`;
+        } else {
+          const dmgCost = getTowerDamageUpgradeCost(key);
+          btns += `<button class="shop-btn" ${game.score >= dmgCost ? '' : 'disabled'} onclick="buyTowerDamageUpgrade('${key}')">UPGRADE ${u.unitName.toUpperCase()} DAMAGE (${dmgCost} pts)</button>`;
+        }
+      }
     } else {
       btns = `<button class="shop-btn" ${game.score >= u.unitCost ? '' : 'disabled'} onclick="buyUnit('${key}')">+1 ${u.unitName} (${u.unitCost} pts)</button>`;
     }
 
     let countText = '';
     if (key === 'temple') {
-      countText = u.built ? 'Conversions unlocked' : 'Required to convert enemies';
+      countText = u.built
+        ? `Conversion slots: ${game.maxConversionSlots}/${MAX_CONVERSION_SLOTS} | Time per conversion: ${CONVERSION_DURATION_SECONDS}s`
+        : 'Required to convert enemies';
     } else if (!u.built) {
       countText = `Not built | Upkeep once built: ${u.upkeep} pts/${u.unitName}/wave`;
     } else if (u.convertBased) {
-      countText = `${u.unitName}s: ${u.count} | Converts available: ${game.convertedUnits} | Upkeep: ${u.upkeep} pts/unit/wave`;
+      const damageInfo = u.damageUpgradeable
+        ? (key === 'archery'
+          ? ` | Arrow dmg: ${(1 + u.damageLevel * u.damagePerLevel).toFixed(1)} | Damage lvl: ${u.damageLevel}/${MAX_TOWER_DAMAGE_LEVEL}`
+          : ` | Spell dmg x${(1 + u.damageLevel * u.damagePerLevel).toFixed(2)} | Damage lvl: ${u.damageLevel}/${MAX_TOWER_DAMAGE_LEVEL}`)
+        : '';
+      countText = `${u.unitName}s: ${u.count} | Converts available: ${game.convertedUnits} | Upkeep: ${u.upkeep} pts/unit/wave${damageInfo}`;
     } else {
       countText = `${u.unitName}s: ${u.count} | Upkeep: ${u.upkeep} pts/unit/wave`;
     }
@@ -4479,6 +4520,37 @@ function buyWallUpgrade(mult = 1) {
     u.count += countToBuy;
     game.maxCastleHp += hpGain;
     game.castleHp += hpGain;
+    updateShop();
+  }
+}
+
+function getConversionSlotUpgradeCost() {
+  return 1500 + (game.maxConversionSlots - BASE_CONVERSION_SLOTS) * 1000;
+}
+
+function buyConversionSlot() {
+  if (!UPGRADES.temple.built || game.maxConversionSlots >= MAX_CONVERSION_SLOTS) return;
+  const slotCost = getConversionSlotUpgradeCost();
+  if (game.score >= slotCost) {
+    game.score -= slotCost;
+    game.maxConversionSlots++;
+    updateShop();
+  }
+}
+
+function getTowerDamageUpgradeCost(key) {
+  const u = UPGRADES[key];
+  if (!u || !u.damageUpgradeable) return Infinity;
+  return u.damageUpgradeBaseCost + u.damageLevel * u.damageUpgradeStep;
+}
+
+function buyTowerDamageUpgrade(key) {
+  const u = UPGRADES[key];
+  if (!u || !u.built || !u.damageUpgradeable || u.damageLevel >= MAX_TOWER_DAMAGE_LEVEL) return;
+  const cost = getTowerDamageUpgradeCost(key);
+  if (game.score >= cost) {
+    game.score -= cost;
+    u.damageLevel++;
     updateShop();
   }
 }
@@ -4663,8 +4735,8 @@ function handlePointerUp(clientX, clientY) {
       canvas.style.cursor = 'default';
       return;
     }
-    if (game.converting.length >= 3) {
-      game.floatingTexts.push(new FloatingText(game.mouseX, game.mouseY - 10, 'CONVERSION FULL (max 3)', '#ff8888', 12));
+    if (game.converting.length >= game.maxConversionSlots) {
+      game.floatingTexts.push(new FloatingText(game.mouseX, game.mouseY - 10, `CONVERSION FULL (max ${game.maxConversionSlots})`, '#ff8888', 12));
       // If converters are full, treat this as a normal throw.
       en.flying = true;
       en.peakY = game.mouseY;
@@ -4685,8 +4757,8 @@ function handlePointerUp(clientX, clientY) {
     game.score += earned;
     const label = bonus > 1 ? `+${earned} (${bonus}x)` : `+${earned}`;
     game.floatingTexts.push(new FloatingText(game.mouseX, game.mouseY - 30, label, '#ffdd44', 14));
-    // Start conversion timer (~25 game-seconds)
-    game.converting.push({ timer: 0, maxTimer: 25 });
+    // Start conversion timer (~50 game-seconds)
+    game.converting.push({ timer: 0, maxTimer: CONVERSION_DURATION_SECONDS });
     game.floatingTexts.push(new FloatingText(game.mouseX, game.mouseY - 10, 'CONVERTING...', '#88ff88', 12));
     for (let i = 0; i < 8; i++) {
       game.particles.push(new Particle(
@@ -4727,7 +4799,6 @@ canvas.addEventListener('mouseup', (e) => {
 });
 
 document.addEventListener('keydown', (e) => {
-  if (!game || game.gameOver) return;
   const key = e.key.toLowerCase();
 
   if (key === 'f') {
@@ -4735,7 +4806,6 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-// ============================================================
 // TOUCH SUPPORT
 // ============================================================
 let _touchId = null;
@@ -4820,7 +4890,6 @@ document.getElementById('playerNameInput').addEventListener('keydown', (e) => {
 });
 
 openTitleLeaderboard();
-
 // Initial render
 render();
 </script>
