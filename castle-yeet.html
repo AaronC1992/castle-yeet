@@ -601,7 +601,7 @@ function _loadOuchSound() {
   } catch(e) {}
 }
 
-const CASTLE_HIT_SRC = 'castle_hit_%232-1786332147198.mp3';
+const CASTLE_HIT_SRC = 'sounds/castle_hit_%232-1786332147198.mp3';
 let _castleHitAudio = null;
 function _loadCastleHitSound() {
   try {
@@ -869,7 +869,7 @@ const ENEMY_TYPES = {
 };
 
 
-const SWIFT_ARROW_SRC = 'Swift_arrow_whizzing_%233-1786332261343.mp3';
+const SWIFT_ARROW_SRC = 'sounds/Swift_arrow_whizzing_%233-1786332261343.mp3';
 let _swiftArrowAudio = null;
 function _loadSwiftArrowSound() {
   try {
@@ -889,7 +889,7 @@ function playSwiftArrow() {
   } catch(e) {}
 }
 
-const ARROW_HIT_SRC = 'arrow_hit_%233-1786332390018.mp3';
+const ARROW_HIT_SRC = 'sounds/arrow_hit_%233-1786332390018.mp3';
 let _arrowHitAudio = null;
 function _loadArrowHitSound() {
   try {
@@ -909,7 +909,7 @@ function playArrowHit() {
   } catch(e) {}
 }
 
-const CONVERSION_COMPLETE_SRC = 'Conversion%20complete.mp3';
+const CONVERSION_COMPLETE_SRC = 'sounds/Conversion%20complete.mp3';
 let _conversionCompleteAudio = null;
 function _loadConversionCompleteSound() {
   try {
@@ -929,7 +929,7 @@ function playConversionComplete() {
   } catch(e) {}
 }
 
-const WIZARD_CAST_SRC = 'wizard%20cast.mp3';
+const WIZARD_CAST_SRC = 'sounds/wizard%20cast.mp3';
 let _wizardCastAudio = null;
 function _loadWizardCastSound() {
   try {
@@ -949,7 +949,7 @@ function playWizardCast() {
   } catch(e) {}
 }
 
-const SPELL_HIT_SRC = 'spell%20hit.mp3';
+const SPELL_HIT_SRC = 'sounds/spell%20hit.mp3';
 let _spellHitAudio = null;
 function _loadSpellHitSound() {
   try {
@@ -969,7 +969,7 @@ function playSpellHit() {
   } catch(e) {}
 }
 
-const EXPLOSION_SRC = 'explosion.mp3';
+const EXPLOSION_SRC = 'sounds/explosion.mp3';
 let _explosionAudio = null;
 function _loadExplosionSound() {
   try {
@@ -989,7 +989,7 @@ function playExplosion() {
   } catch(e) {}
 }
 
-const FALLING_ON_ANOTHER_SPLAT_SRC = 'falling%20on%20another%20splat.mp3';
+const FALLING_ON_ANOTHER_SPLAT_SRC = 'sounds/falling%20on%20another%20splat.mp3';
 let _fallingOnAnotherSplatAudio = null;
 function _loadFallingOnAnotherSplatSound() {
   try {
@@ -1009,6 +1009,47 @@ function playFallingOnAnotherSplat() {
   } catch(e) {}
 }
 
+const FALLING_SCREAM_SRCS = [
+  'sounds/falling%20scream%201.mp3',
+  'sounds/falling%20scream%202.mp3',
+  'sounds/falling%20scream%203.mp3',
+  'sounds/falling%20scream%204.mp3',
+];
+let _fallingScreamAudios = [];
+function _loadFallingScreamSounds() {
+  _fallingScreamAudios = FALLING_SCREAM_SRCS.map(src => {
+    try {
+      const audio = new Audio(src);
+      audio.preload = 'auto';
+      audio.load();
+      return audio;
+    } catch(e) {
+      return null;
+    }
+  }).filter(Boolean);
+}
+
+function playFallingScream() {
+  if (_fallingScreamAudios.length === 0) return null;
+  try {
+    const audio = _fallingScreamAudios[Math.floor(Math.random() * _fallingScreamAudios.length)].cloneNode();
+    audio.volume = 0.62;
+    audio.playbackRate = 0.96 + Math.random() * 0.08;
+    audio.play().catch(() => {});
+    return audio;
+  } catch(e) {
+    return null;
+  }
+}
+
+function stopFallingScream(audio) {
+  if (!audio) return;
+  try {
+    audio.pause();
+    audio.currentTime = 0;
+  } catch(e) {}
+}
+
 const CLEANER_SPRITE_SRC = 'Stickman%20cleaner.png';
 let _cleanerSprite = null;
 function _loadCleanerSprite() {
@@ -1024,7 +1065,7 @@ const UPGRADES = {
   temple: {
     name: 'Stickman Rehabilitation Facility',
     desc: 'Required to convert enemies into your troops. Drop captured enemies on the castle to convert them.',
-    buildCost: 2000,
+    buildCost: 1000,
     unitCost: 0,
     unitName: null,
     upkeep: 0,
@@ -1034,52 +1075,52 @@ const UPGRADES = {
   archery: {
     name: 'Guys With Bows',
     desc: 'Assign converts as archers. They auto-shoot arrows at enemies. More archers = faster firing.',
-    buildCost: 5000,
+    buildCost: 2500,
     unitCost: 0,
     unitName: 'Archer',
-    upkeep: 15, // pts per archer per wave
+    upkeep: 8, // pts per archer per wave
     built: false,
     count: 0,
     convertBased: true,
     damageUpgradeable: true,
     damageLevel: 0,
     damagePerLevel: 0.5,
-    damageUpgradeBaseCost: 2500,
-    damageUpgradeStep: 1400,
+    damageUpgradeBaseCost: 1200,
+    damageUpgradeStep: 750,
   },
   mana: {
     name: 'Suspicious Wizard Stuff',
     desc: 'Assign converts as wizards. Press S then click to paint a magic zone that damages enemies.',
-    buildCost: 40000,
+    buildCost: 12000,
     unitCost: 0,
     unitName: 'Wizard',
-    upkeep: 20,
+    upkeep: 14,
     built: false,
     count: 0,
     convertBased: true,
     damageUpgradeable: true,
     damageLevel: 0,
     damagePerLevel: 0.2,
-    damageUpgradeBaseCost: 7000,
-    damageUpgradeStep: 3200,
+    damageUpgradeBaseCost: 3000,
+    damageUpgradeStep: 1500,
   },
   workshop: {
     name: 'Unpaid Maintenance Crew',
     desc: 'Craftsmen auto-repair your castle between waves. More = faster repair.',
-    buildCost: 25000,
+    buildCost: 8000,
     unitCost: 60,
     unitName: 'Craftsman',
-    upkeep: 12,
+    upkeep: 6,
     built: false,
     count: 0,
   },
   demo: {
     name: 'Boom School',
     desc: 'Assign converts as bombers. They auto-deploy and explode on contact with enemies.',
-    buildCost: 15000,
+    buildCost: 6000,
     unitCost: 0,
     unitName: 'Bomber',
-    upkeep: 25,
+    upkeep: 16,
     built: false,
     count: 0,
     convertBased: true,
@@ -1087,8 +1128,8 @@ const UPGRADES = {
   wall: {
     name: 'Make Wall More Wall',
     desc: 'Increase your castle max health by 25 HP each time you buy this upgrade.',
-    buildCost: 750,
-    unitCost: 750,
+    buildCost: 400,
+    unitCost: 400,
     unitName: 'Reinforcement',
     upkeep: 0,
     built: true,
@@ -1746,6 +1787,7 @@ class Enemy {
     this.grabbed = false;
     this.throwVX = 0;
     this.throwVY = 0;
+    this.throwAudio = null;
     this.flying = false;
     this.peakY = 0; // highest point reached while flying (lower Y = higher up)
 
@@ -1802,6 +1844,8 @@ class Enemy {
       // Check if hit ground
       const landingY = terrainYAt(this.x) - 10;
       if (this.y >= landingY) {
+        stopFallingScream(this.throwAudio);
+        this.throwAudio = null;
         const fallHeight = landingY - this.peakY;
         // Distance based fall damage:
         // low drops mostly injure, high drops become lethal.
@@ -1865,6 +1909,8 @@ class Enemy {
       }
       // Off screen - dead (killed by throw)
       if (this.y < -500 || this.x < -200 || this.x > canvas.width + 200) {
+        stopFallingScream(this.throwAudio);
+        this.throwAudio = null;
         this.dead = true;
         game.kills += 1;
         const bonus = game.speedMult > 1 ? game.speedMult : 1;
@@ -4442,9 +4488,9 @@ function updateShop() {
   const repairDiv = document.createElement('div');
   repairDiv.className = 'shop-item';
   repairDiv.style.gridColumn = '1 / -1';
-  const repair50Cost = 100;
-  const repair250Cost = 500;
-  const repair1000Cost = 2000;
+  const repair50Cost = 75;
+  const repair250Cost = 300;
+  const repair1000Cost = 1000;
   const wallCost = UPGRADES.wall.unitCost;
   const wallX10Cost = wallCost * 10;
   const canRepair50 = game.score >= repair50Cost && game.castleHp < game.maxCastleHp;
@@ -4546,7 +4592,7 @@ function buyWallUpgrade(mult = 1) {
 }
 
 function getConversionSlotUpgradeCost() {
-  return 1500 + (game.maxConversionSlots - BASE_CONVERSION_SLOTS) * 1000;
+  return 750 + (game.maxConversionSlots - BASE_CONVERSION_SLOTS) * 500;
 }
 
 function buyConversionSlot() {
@@ -4749,6 +4795,7 @@ function handlePointerUp(clientX, clientY) {
       const noTempleVel = getThrowVelocity();
       en.throwVX = noTempleVel.vx;
       en.throwVY = noTempleVel.vy < 0 ? noTempleVel.vy : -400;
+      en.throwAudio = playFallingScream();
       en.x = game.mouseX;
       en.y = game.mouseY;
       _mouseHistory = [];
@@ -4764,6 +4811,7 @@ function handlePointerUp(clientX, clientY) {
       const busyVel = getThrowVelocity();
       en.throwVX = busyVel.vx;
       en.throwVY = busyVel.vy < 0 ? busyVel.vy : Math.max(-400, busyVel.vy * 0.4);
+      en.throwAudio = playFallingScream();
       en.x = game.mouseX;
       en.y = game.mouseY;
       _mouseHistory = [];
@@ -4799,6 +4847,7 @@ function handlePointerUp(clientX, clientY) {
   const { vx, vy } = getThrowVelocity();
   en.throwVX = vx;
   en.throwVY = vy < 0 ? vy : Math.max(-400, vy * 0.4);
+  en.throwAudio = playFallingScream();
   en.x = game.mouseX;
   en.y = game.mouseY;
   _mouseHistory = [];
@@ -4897,6 +4946,7 @@ function startGame() {
   _loadSpellHitSound();
   _loadExplosionSound();
   _loadFallingOnAnotherSplatSound();
+  _loadFallingScreamSounds();
   _loadCleanerSprite();
   lastTime = performance.now();
   // Start first wave immediately
