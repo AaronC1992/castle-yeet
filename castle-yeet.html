@@ -286,6 +286,19 @@ canvas {
   opacity: 0.55;
   cursor: not-allowed;
 }
+.audio-toggle {
+  margin: 8px auto 0;
+  display: block;
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: bold;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid #667;
+  border-radius: 6px;
+  color: #ddd;
+  cursor: pointer;
+}
+.audio-toggle:hover { background: rgba(255,255,255,0.16); }
 
 .name-submit-status {
   width: 100%;
@@ -478,6 +491,8 @@ canvas {
   <h1>CASTLE YEET</h1>
   <p>Hordes of stick figures are coming. Throw them into the sky to destroy them. Build a Temple, then drop enemies on your castle to convert them into troops. Assign converts to towers between waves.</p>
   <button class="menu-btn" onclick="startGame()">DEFEND!</button>
+  <button id="titleSfxToggle" class="audio-toggle" onclick="toggleSfx()">SFX: ON</button>
+  <button id="titleMusicToggle" class="audio-toggle" onclick="toggleMusic()">MUSIC: ON</button>
   <button class="help-btn" onclick="document.getElementById('helpPanel').classList.toggle('show')">How to Play</button>
   <a href="https://www.buymeacoffee.com/Aaron92" target="_blank" rel="noopener noreferrer" class="bmc-btn">☕ Buy me a coffee</a>
   <div id="helpPanel">
@@ -503,6 +518,8 @@ canvas {
   <div class="shop-panel">
     <h2>BETWEEN WAVES</h2>
     <div class="shop-points" id="shopPoints">Points: 0</div>
+    <button id="shopSfxToggle" class="audio-toggle" onclick="toggleSfx()">SFX: ON</button>
+    <button id="shopMusicToggle" class="audio-toggle" onclick="toggleMusic()">MUSIC: ON</button>
     <div class="shop-leaderboard">
       <div class="leaderboard-title">Hall of Defenders</div>
       <div id="shopLeaderboardStatus" class="leaderboard-status">Loading leaderboard...</div>
@@ -547,6 +564,33 @@ resizeCanvas();
 // ============================================================
 let _audioCtx = null;
 let _compressor = null;
+let _sfxEnabled = true;
+let _musicEnabled = true;
+let _activeFallingScreams = new Set();
+
+function toggleSfx() {
+  _sfxEnabled = !_sfxEnabled;
+  const label = `SFX: ${_sfxEnabled ? 'ON' : 'OFF'}`;
+  const titleToggle = document.getElementById('titleSfxToggle');
+  const shopToggle = document.getElementById('shopSfxToggle');
+  if (titleToggle) titleToggle.textContent = label;
+  if (shopToggle) shopToggle.textContent = label;
+  if (!_sfxEnabled) stopAllFallingScreams();
+}
+
+function toggleMusic() {
+  _musicEnabled = !_musicEnabled;
+  const label = `MUSIC: ${_musicEnabled ? 'ON' : 'OFF'}`;
+  const titleToggle = document.getElementById('titleMusicToggle');
+  const shopToggle = document.getElementById('shopMusicToggle');
+  if (titleToggle) titleToggle.textContent = label;
+  if (shopToggle) shopToggle.textContent = label;
+  if (_musicEnabled) {
+    if (document.getElementById('shopOverlay').classList.contains('visible')) playUpgradeMenuMusic();
+  } else {
+    stopUpgradeMenuMusic();
+  }
+}
 
 function getAudioCtx() {
   if (!_audioCtx) {
@@ -576,7 +620,7 @@ function _loadSplatSound() {
 }
 
 function playSplat(size = 1) {
-  if (!_splatBuffer) return;
+  if (!_sfxEnabled || !_splatBuffer) return;
   try {
     const ctx = getAudioCtx();
     const src = ctx.createBufferSource();
@@ -612,7 +656,7 @@ function _loadCastleHitSound() {
 }
 
 function playCastleHit() {
-  if (!_castleHitAudio) return;
+  if (!_sfxEnabled || !_castleHitAudio) return;
   try {
     const sfx = _castleHitAudio.cloneNode();
     sfx.volume = 0.9;
@@ -622,7 +666,7 @@ function playCastleHit() {
 }
 
 function playThud() {
-  if (!_ouchBuffer) return;
+  if (!_sfxEnabled || !_ouchBuffer) return;
   try {
     const ctx = getAudioCtx();
     const src = ctx.createBufferSource();
@@ -880,7 +924,7 @@ function _loadSwiftArrowSound() {
 }
 
 function playSwiftArrow() {
-  if (!_swiftArrowAudio) return;
+  if (!_sfxEnabled || !_swiftArrowAudio) return;
   try {
     const sfx = _swiftArrowAudio.cloneNode();
     sfx.volume = 0.55;
@@ -900,7 +944,7 @@ function _loadArrowHitSound() {
 }
 
 function playArrowHit() {
-  if (!_arrowHitAudio) return;
+  if (!_sfxEnabled || !_arrowHitAudio) return;
   try {
     const sfx = _arrowHitAudio.cloneNode();
     sfx.volume = 0.6;
@@ -920,7 +964,7 @@ function _loadConversionCompleteSound() {
 }
 
 function playConversionComplete() {
-  if (!_conversionCompleteAudio) return;
+  if (!_sfxEnabled || !_conversionCompleteAudio) return;
   try {
     const sfx = _conversionCompleteAudio.cloneNode();
     sfx.volume = 0.72;
@@ -940,7 +984,7 @@ function _loadWizardCastSound() {
 }
 
 function playWizardCast() {
-  if (!_wizardCastAudio) return;
+  if (!_sfxEnabled || !_wizardCastAudio) return;
   try {
     const sfx = _wizardCastAudio.cloneNode();
     sfx.volume = 0.58;
@@ -960,7 +1004,7 @@ function _loadSpellHitSound() {
 }
 
 function playSpellHit() {
-  if (!_spellHitAudio) return;
+  if (!_sfxEnabled || !_spellHitAudio) return;
   try {
     const sfx = _spellHitAudio.cloneNode();
     sfx.volume = 0.5;
@@ -980,7 +1024,7 @@ function _loadExplosionSound() {
 }
 
 function playExplosion() {
-  if (!_explosionAudio) return;
+  if (!_sfxEnabled || !_explosionAudio) return;
   try {
     const sfx = _explosionAudio.cloneNode();
     sfx.volume = 0.8;
@@ -1000,7 +1044,7 @@ function _loadFallingOnAnotherSplatSound() {
 }
 
 function playFallingOnAnotherSplat() {
-  if (!_fallingOnAnotherSplatAudio) return;
+  if (!_sfxEnabled || !_fallingOnAnotherSplatAudio) return;
   try {
     const sfx = _fallingOnAnotherSplatAudio.cloneNode();
     sfx.volume = 0.8;
@@ -1030,11 +1074,13 @@ function _loadFallingScreamSounds() {
 }
 
 function playFallingScream() {
-  if (_fallingScreamAudios.length === 0) return null;
+  if (!_sfxEnabled || _fallingScreamAudios.length === 0) return null;
   try {
     const audio = _fallingScreamAudios[Math.floor(Math.random() * _fallingScreamAudios.length)].cloneNode();
     audio.volume = 0.62;
     audio.playbackRate = 0.96 + Math.random() * 0.08;
+    _activeFallingScreams.add(audio);
+    audio.addEventListener('ended', () => _activeFallingScreams.delete(audio), { once: true });
     audio.play().catch(() => {});
     return audio;
   } catch(e) {
@@ -1044,6 +1090,7 @@ function playFallingScream() {
 
 function stopFallingScream(audio) {
   if (!audio) return;
+  _activeFallingScreams.delete(audio);
   try {
     audio.pause();
     audio.currentTime = 0;
@@ -1051,10 +1098,12 @@ function stopFallingScream(audio) {
 }
 
 function stopAllFallingScreams() {
-  if (!game || !game.enemies) return;
-  for (const enemy of game.enemies) {
-    stopFallingScream(enemy.throwAudio);
-    enemy.throwAudio = null;
+  for (const audio of _activeFallingScreams) stopFallingScream(audio);
+  if (game && game.enemies) {
+    for (const enemy of game.enemies) {
+      stopFallingScream(enemy.throwAudio);
+      enemy.throwAudio = null;
+    }
   }
 }
 
@@ -1071,7 +1120,7 @@ function _loadUpgradeMenuMusic() {
 }
 
 function playUpgradeMenuMusic() {
-  if (!_upgradeMenuMusic) return;
+  if (!_musicEnabled || !_upgradeMenuMusic) return;
   _upgradeMenuMusic.play().catch(() => {});
 }
 
