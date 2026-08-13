@@ -2004,6 +2004,18 @@ class Enemy {
       this.y += this.throwVY * dt;
       this.throwVY += 900 * dt; // gravity
 
+      // Keep thrown enemies from crossing behind the castle.
+      if (this.x > castleX()) {
+        stopFallingScream(this.throwAudio);
+        this.throwAudio = null;
+        this.x = castleX() - 30 * this.size;
+        this.y = terrainYAt(this.x);
+        this.flying = false;
+        this.throwVX = 0;
+        this.throwVY = 0;
+        return;
+      }
+
       // Midair touch damage is disabled to prevent instant collision exploits.
 
       // Track peak height
@@ -2095,6 +2107,7 @@ class Enemy {
 
     // Walk toward castle
     const targetX = castleX() - 30 * this.size;
+    if (this.x > castleX()) this.x = targetX;
     if (this.x < targetX) {
       const depth = terrainDepthAt(this.x);
       const slow = Math.max(0.58, 1 - depth / 22);
@@ -3317,7 +3330,7 @@ function startBattlefieldCleaner() {
   const cleaner = {
     x: canvas.width + 100,
     y: groundY(),
-    speed: 62,
+    speed: 78,
     radius: 70,
     active: true,
     uiTimer: 0,
@@ -4242,7 +4255,7 @@ function drawCastle(ctx) {
   const barW = 80;
   const barH = 8;
   const barX = cx + wallW/2 - 40;
-  const barY = wallY - 20;
+  const barY = wallY - 48;
   ctx.fillStyle = '#222';
   ctx.fillRect(barX, barY, barW, barH);
   ctx.strokeStyle = '#555';
