@@ -3297,10 +3297,25 @@ function cleanBattlefieldAt(x, radius) {
   game.groundArrows = game.groundArrows.filter(arrow => Math.abs(arrow.x - x) > radius);
 }
 
+function cleanupOffscreenBattlefieldItems() {
+  if (!game) return;
+  const margin = 120;
+  const minX = -margin;
+  const maxX = canvas.width + margin;
+  const isOnscreen = item => item.x >= minX && item.x <= maxX;
+  game.deadBodies = game.deadBodies.filter(isOnscreen);
+  game.friedCorpses = game.friedCorpses.filter(isOnscreen);
+  game.bloodSplats = game.bloodSplats.filter(isOnscreen);
+  game.goreChunks = game.goreChunks.filter(isOnscreen);
+  game.craters = game.craters.filter(isOnscreen);
+  game.dirtChunks = game.dirtChunks.filter(isOnscreen);
+  game.groundArrows = game.groundArrows.filter(isOnscreen);
+}
+
 function startBattlefieldCleaner() {
   if (!game) return;
   const cleaner = {
-    x: castleX() + 70,
+    x: canvas.width + 100,
     y: groundY(),
     speed: 62,
     radius: 70,
@@ -4451,6 +4466,7 @@ function gameLoop(timestamp) {
 
   // Cleaner sweeps and removes battlefield remains while moving left.
   updateBattlefieldCleaner(rawDt);
+  cleanupOffscreenBattlefieldItems();
 
   // Update dead bodies and keep them on the field through the wave.
   for (const db of game.deadBodies) db.update(dt);
