@@ -299,6 +299,57 @@ canvas {
   cursor: pointer;
 }
 .audio-toggle:hover { background: rgba(255,255,255,0.16); }
+.options-btn {
+  margin: 0;
+}
+
+#optionsOverlay {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.82);
+  z-index: 120;
+}
+#optionsOverlay.visible { display: flex; }
+.options-panel {
+  width: min(420px, 88%);
+  padding: 28px;
+  background: linear-gradient(145deg, #1a1a35, #0d0d20);
+  border: 2px solid #2a2a5a;
+  border-radius: 16px;
+  text-align: center;
+}
+.options-panel h2 {
+  margin-bottom: 18px;
+  color: #ffcc44;
+  font-size: 26px;
+}
+.options-panel .audio-toggle {
+  width: 180px;
+}
+.particle-setting {
+  margin: 22px 0;
+  color: #ddd;
+}
+.particle-setting label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+.particle-setting input {
+  width: 80%;
+  accent-color: #ffcc44;
+}
+.particle-value {
+  color: #ffcc44;
+  font-weight: bold;
+}
+.options-back-btn {
+  margin-top: 8px;
+  width: 180px;
+}
 
 .name-submit-status {
   width: 100%;
@@ -491,8 +542,7 @@ canvas {
   <h1>CASTLE YEET</h1>
   <p>Hordes of stick figures are coming. Throw them into the sky to destroy them. Build a Temple, then drop enemies on your castle to convert them into troops. Assign converts to towers between waves.</p>
   <button class="menu-btn" onclick="startGame()">DEFEND!</button>
-  <button id="titleSfxToggle" class="audio-toggle" onclick="toggleSfx()">SFX: ON</button>
-  <button id="titleMusicToggle" class="audio-toggle" onclick="toggleMusic()">MUSIC: ON</button>
+  <button class="help-btn options-btn" onclick="openOptions('title')">OPTIONS</button>
   <button class="help-btn" onclick="document.getElementById('helpPanel').classList.toggle('show')">How to Play</button>
   <a href="https://www.buymeacoffee.com/Aaron92" target="_blank" rel="noopener noreferrer" class="bmc-btn">☕ Buy me a coffee</a>
   <div id="helpPanel">
@@ -518,8 +568,7 @@ canvas {
   <div class="shop-panel">
     <h2>BETWEEN WAVES</h2>
     <div class="shop-points" id="shopPoints">Points: 0</div>
-    <button id="shopSfxToggle" class="audio-toggle" onclick="toggleSfx()">SFX: ON</button>
-    <button id="shopMusicToggle" class="audio-toggle" onclick="toggleMusic()">MUSIC: ON</button>
+    <button class="help-btn options-btn" onclick="openOptions('shop')">OPTIONS</button>
     <div class="shop-leaderboard">
       <div class="leaderboard-title">Hall of Defenders</div>
       <div id="shopLeaderboardStatus" class="leaderboard-status">Loading leaderboard...</div>
@@ -530,6 +579,19 @@ canvas {
       <a href="https://www.buymeacoffee.com/Aaron92" target="_blank" rel="noopener noreferrer" class="bmc-btn">☕ Support the game, buy me a coffee</a>
     </div>
     <button class="next-wave-btn" onclick="closeShopAndStart()">NEXT WAVE &rarr;</button>
+  </div>
+</div>
+
+<div id="optionsOverlay">
+  <div class="options-panel">
+    <h2>OPTIONS</h2>
+    <button id="optionsSfxToggle" class="audio-toggle" onclick="toggleSfx()">SFX: ON</button>
+    <button id="optionsMusicToggle" class="audio-toggle" onclick="toggleMusic()">MUSIC: ON</button>
+    <div class="particle-setting">
+      <label for="particleLimit">PARTICLES: <span id="particleLimitValue" class="particle-value">600</span></label>
+      <input id="particleLimit" type="range" min="100" max="2000" step="50" value="600" oninput="setParticleLimit(this.value)">
+    </div>
+    <button class="small-menu-btn options-back-btn" onclick="closeOptions()">BACK</button>
   </div>
 </div>
 
@@ -566,25 +628,50 @@ let _audioCtx = null;
 let _compressor = null;
 let _sfxEnabled = true;
 let _musicEnabled = true;
+let _particleLimit = 600;
 let _activeFallingScreams = new Set();
+let _optionsReturnTarget = 'title';
+
+function updateOptionsControls() {
+  const sfxLabel = `SFX: ${_sfxEnabled ? 'ON' : 'OFF'}`;
+  const musicLabel = `MUSIC: ${_musicEnabled ? 'ON' : 'OFF'}`;
+  const sfxToggle = document.getElementById('optionsSfxToggle');
+  const musicToggle = document.getElementById('optionsMusicToggle');
+  const particleSlider = document.getElementById('particleLimit');
+  const particleValue = document.getElementById('particleLimitValue');
+  if (sfxToggle) sfxToggle.textContent = sfxLabel;
+  if (musicToggle) musicToggle.textContent = musicLabel;
+  if (particleSlider) particleSlider.value = _particleLimit;
+  if (particleValue) particleValue.textContent = _particleLimit;
+}
+
+function openOptions(returnTarget = 'title') {
+  _optionsReturnTarget = returnTarget;
+  updateOptionsControls();
+  document.getElementById('optionsOverlay').classList.add('visible');
+}
+
+function closeOptions() {
+  document.getElementById('optionsOverlay').classList.remove('visible');
+}
+
+function setParticleLimit(value) {
+  _particleLimit = Math.max(100, Math.min(2000, Number(value) || 600));
+  updateOptionsControls();
+  if (game && game.particles.length > _particleLimit) {
+    game.particles.splice(0, game.particles.length - _particleLimit);
+  }
+}
 
 function toggleSfx() {
   _sfxEnabled = !_sfxEnabled;
-  const label = `SFX: ${_sfxEnabled ? 'ON' : 'OFF'}`;
-  const titleToggle = document.getElementById('titleSfxToggle');
-  const shopToggle = document.getElementById('shopSfxToggle');
-  if (titleToggle) titleToggle.textContent = label;
-  if (shopToggle) shopToggle.textContent = label;
+  updateOptionsControls();
   if (!_sfxEnabled) stopAllFallingScreams();
 }
 
 function toggleMusic() {
   _musicEnabled = !_musicEnabled;
-  const label = `MUSIC: ${_musicEnabled ? 'ON' : 'OFF'}`;
-  const titleToggle = document.getElementById('titleMusicToggle');
-  const shopToggle = document.getElementById('shopMusicToggle');
-  if (titleToggle) titleToggle.textContent = label;
-  if (shopToggle) shopToggle.textContent = label;
+  updateOptionsControls();
   if (_musicEnabled) {
     if (document.getElementById('shopOverlay').classList.contains('visible')) playUpgradeMenuMusic();
   } else {
@@ -1970,7 +2057,7 @@ class Enemy {
             }
             game.screenShake = Math.max(game.screenShake, 0.18);
           }
-          this.onDeath();
+          this.onDeath('fall');
           playSplat(this.size);
           // Splat particles
           for (let i = 0; i < 6; i++) {
@@ -2058,15 +2145,17 @@ class Enemy {
     if (cause !== 'explosion') {
       spawnDeadBodyFromEnemy(this, cause);
     }
-    const chunkY = this.flying ? this.y : terrainYAt(this.x) - 8;
-    const explosive = cause === 'explosion';
-    const parts = explosive
-      ? ['head', 'torso', 'limb', 'limb', 'limb', 'limb']
-      : ['head', 'torso', 'limb', 'limb'];
-    const impulse = explosive ? 1.65 : 1;
-    const baseSize = explosive ? (2.9 + this.size * 1.15) : (2 + this.size);
-    for (const part of parts) {
-      game.goreChunks.push(new GoreChunk(this.x, chunkY, baseSize, part, impulse, this.color));
+    if (cause !== 'fall') {
+      const chunkY = this.flying ? this.y : terrainYAt(this.x) - 8;
+      const explosive = cause === 'explosion';
+      const parts = explosive
+        ? ['head', 'torso', 'limb', 'limb', 'limb', 'limb']
+        : ['head', 'torso', 'limb', 'limb'];
+      const impulse = explosive ? 1.65 : 1;
+      const baseSize = explosive ? (2.9 + this.size * 1.15) : (2 + this.size);
+      for (const part of parts) {
+        game.goreChunks.push(new GoreChunk(this.x, chunkY, baseSize, part, impulse, this.color));
+      }
     }
 
     // Drop special weapons / gear as physics items
@@ -2744,7 +2833,11 @@ class Arrow {
     this.angle = Math.atan2(this.vy, this.vx);
 
     if (this.y >= terrainYAt(this.x) - 1) {
-      spawnDirtImpact(this.x, 1);
+      game.groundArrows.push({
+        x: this.x,
+        y: terrainYAt(this.x),
+        angle: this.angle,
+      });
       this.dead = true;
       return;
     }
@@ -2773,6 +2866,26 @@ class Arrow {
     ctx.fill();
     ctx.restore();
   }
+}
+
+function drawGroundArrow(ctx, arrow) {
+  ctx.save();
+  ctx.translate(arrow.x, arrow.y);
+  ctx.rotate(arrow.angle || 0);
+  ctx.strokeStyle = '#8B4513';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(-8, 2);
+  ctx.lineTo(5, -2);
+  ctx.stroke();
+  ctx.fillStyle = '#aaa';
+  ctx.beginPath();
+  ctx.moveTo(8, -3);
+  ctx.lineTo(4, -5);
+  ctx.lineTo(5, 0);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
 }
 
 class Bomber {
@@ -3117,6 +3230,7 @@ function initGame() {
     totalMoney: 0,
     enemies: [],
     arrows: [],
+    groundArrows: [],
     bombers: [],
     particles: [],
     goreChunks: [],
@@ -3169,6 +3283,7 @@ function cleanupBattlefield() {
   game.goreChunks = [];
   game.craters = [];
   game.dirtChunks = [];
+  game.groundArrows = [];
 }
 
 function cleanBattlefieldAt(x, radius) {
@@ -3179,6 +3294,7 @@ function cleanBattlefieldAt(x, radius) {
   game.goreChunks = game.goreChunks.filter(gc => Math.abs(gc.x - x) > radius);
   game.craters = game.craters.filter(cr => Math.abs(cr.x - x) > radius);
   game.dirtChunks = game.dirtChunks.filter(dc => Math.abs(dc.x - x) > radius);
+  game.groundArrows = game.groundArrows.filter(arrow => Math.abs(arrow.x - x) > radius);
 }
 
 function startBattlefieldCleaner() {
@@ -4387,6 +4503,9 @@ function gameLoop(timestamp) {
   // Update particles
   for (const p of game.particles) p.update(dt);
   game.particles = game.particles.filter(p => p.life > 0);
+  if (game.particles.length > _particleLimit) {
+    game.particles.splice(0, game.particles.length - _particleLimit);
+  }
 
   // Update body chunk physics.
   for (const gc of game.goreChunks) gc.update(dt);
@@ -4447,6 +4566,9 @@ function render() {
 
     // Draw loose dirt chunks on top of crater surfaces.
     for (const dc of game.dirtChunks) dc.draw(ctx);
+
+    // Draw arrows embedded in the ground without altering terrain.
+    for (const arrow of game.groundArrows) drawGroundArrow(ctx, arrow);
 
     // Draw blood splats on the ground before enemies
     for (const bs of game.bloodSplats) bs.draw(ctx);
