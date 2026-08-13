@@ -589,7 +589,7 @@ canvas {
     <button id="optionsMusicToggle" class="audio-toggle" onclick="toggleMusic()">MUSIC: ON</button>
     <div class="particle-setting">
       <label for="particleLimit">PARTICLES: <span id="particleLimitValue" class="particle-value">600</span></label>
-      <input id="particleLimit" type="range" min="100" max="2000" step="50" value="600" oninput="setParticleLimit(this.value)">
+      <input id="particleLimit" type="range" min="0" max="2000" step="50" value="600" oninput="setParticleLimit(this.value)">
     </div>
     <button class="small-menu-btn options-back-btn" onclick="closeOptions()">BACK</button>
   </div>
@@ -656,7 +656,8 @@ function closeOptions() {
 }
 
 function setParticleLimit(value) {
-  _particleLimit = Math.max(100, Math.min(2000, Number(value) || 600));
+  const parsedValue = Number(value);
+  _particleLimit = Math.max(0, Math.min(2000, Number.isFinite(parsedValue) ? parsedValue : 600));
   updateOptionsControls();
   if (game && game.particles.length > _particleLimit) {
     game.particles.splice(0, game.particles.length - _particleLimit);
@@ -1273,13 +1274,14 @@ const UPGRADES = {
   },
   workshop: {
     name: 'Unpaid Maintenance Crew',
-    desc: 'Craftsmen auto-repair your castle between waves. More = faster repair.',
+    desc: 'Assign converts as craftsmen. They repair your castle during the match. More = faster repair.',
     buildCost: 8000,
-    unitCost: 60,
+    unitCost: 0,
     unitName: 'Craftsman',
     upkeep: 6,
     built: false,
     count: 0,
+    convertBased: true,
   },
   demo: {
     name: 'Boom School',
@@ -3265,6 +3267,7 @@ function initGame() {
     wizardTimer: 0,
     archerAttackAnim: 0,
     wizardAttackAnim: 0,
+    workshopRepairTimer: 0,
     grabbedEnemy: null,
     grabOffsetX: 0,
     grabOffsetY: 0,
@@ -4456,6 +4459,19 @@ function gameLoop(timestamp) {
   for (const a of game.arrows) a.update(dt);
   game.arrows = game.arrows.filter(a => !a.dead);
 
+  // Craftsmen repair the wall during active waves, never in the shop.
+  if (game.waveActive && UPGRADES.workshop.built && UPGRADES.workshop.count > 0 && game.castleHp < game.maxCastleHp) {
+    game.workshopRepairTimer += dt;
+    if (game.workshopRepairTimer >= 1) {
+      const repairTicks = Math.floor(game.workshopRepairTimer);
+      const repair = repairTicks * UPGRADES.workshop.count * 2;
+      game.workshopRepairTimer -= repairTicks;
+      game.castleHp = Math.min(game.castleHp + repair, game.maxCastleHp);
+    }
+  } else if (!game.waveActive) {
+    game.workshopRepairTimer = 0;
+  }
+
   // Update bombers
   for (const b of game.bombers) b.update(dt);
   game.bombers = game.bombers.filter(b => !b.dead);
@@ -4558,12 +4574,6 @@ function gameLoop(timestamp) {
   if (game.waveActive && game.roundTimeLeft <= 0 && game.enemies.length === 0) {
     stopAllFallingScreams();
     game.waveActive = false;
-    // Workshop repair
-    if (UPGRADES.workshop.built && UPGRADES.workshop.count > 0) {
-      const repair = UPGRADES.workshop.count * 5;
-      game.castleHp = Math.min(game.castleHp + repair, game.maxCastleHp);
-      game.floatingTexts.push(new FloatingText(castleX(), groundY() - 60, `+${repair} HP (Craftsmen)`, '#44cc44', 16));
-    }
     startBattlefieldCleaner();
     processUpkeep();
     // Open shop
