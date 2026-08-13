@@ -1050,6 +1050,37 @@ function stopFallingScream(audio) {
   } catch(e) {}
 }
 
+function stopAllFallingScreams() {
+  if (!game || !game.enemies) return;
+  for (const enemy of game.enemies) {
+    stopFallingScream(enemy.throwAudio);
+    enemy.throwAudio = null;
+  }
+}
+
+const UPGRADE_MENU_MUSIC_SRC = 'sounds/upgrade%20menu%20music.mp3';
+let _upgradeMenuMusic = null;
+function _loadUpgradeMenuMusic() {
+  try {
+    _upgradeMenuMusic = new Audio(UPGRADE_MENU_MUSIC_SRC);
+    _upgradeMenuMusic.loop = true;
+    _upgradeMenuMusic.preload = 'auto';
+    _upgradeMenuMusic.volume = 0.35;
+    _upgradeMenuMusic.load();
+  } catch(e) {}
+}
+
+function playUpgradeMenuMusic() {
+  if (!_upgradeMenuMusic) return;
+  _upgradeMenuMusic.play().catch(() => {});
+}
+
+function stopUpgradeMenuMusic() {
+  if (!_upgradeMenuMusic) return;
+  _upgradeMenuMusic.pause();
+  _upgradeMenuMusic.currentTime = 0;
+}
+
 const CLEANER_SPRITE_SRC = 'Stickman%20cleaner.png';
 let _cleanerSprite = null;
 function _loadCleanerSprite() {
@@ -4327,6 +4358,7 @@ function gameLoop(timestamp) {
 
   // Check wave complete after timer expires and all spawned enemies are gone.
   if (game.waveActive && game.roundTimeLeft <= 0 && game.enemies.length === 0) {
+    stopAllFallingScreams();
     game.waveActive = false;
     // Workshop repair
     if (UPGRADES.workshop.built && UPGRADES.workshop.count > 0) {
@@ -4471,6 +4503,7 @@ function openShop() {
   if (game.gameOver) return;
   const overlay = document.getElementById('shopOverlay');
   overlay.classList.add('visible');
+  playUpgradeMenuMusic();
   updateShop();
   loadLeaderboard();
 }
@@ -4651,6 +4684,7 @@ function assignConvert(key) {
 }
 
 function closeShopAndStart() {
+  stopUpgradeMenuMusic();
   document.getElementById('shopOverlay').classList.remove('visible');
   startNextWave();
 }
@@ -4673,6 +4707,7 @@ function startNextWave() {
 }
 
 function gameOver() {
+  stopAllFallingScreams();
   _lastDeathStats = {
     wave: game.wave,
     kills: game.kills,
@@ -4947,6 +4982,7 @@ function startGame() {
   _loadExplosionSound();
   _loadFallingOnAnotherSplatSound();
   _loadFallingScreamSounds();
+  _loadUpgradeMenuMusic();
   _loadCleanerSprite();
   lastTime = performance.now();
   // Start first wave immediately
