@@ -3300,7 +3300,7 @@ function cleanBattlefieldAt(x, radius) {
 function startBattlefieldCleaner() {
   if (!game) return;
   const cleaner = {
-    x: castleX() - 20,
+    x: castleX() + 70,
     y: groundY(),
     speed: 62,
     radius: 70,
@@ -3308,6 +3308,7 @@ function startBattlefieldCleaner() {
     uiTimer: 0,
   };
   game.cleaner = cleaner;
+  cleanBattlefieldAt(cleaner.x, cleaner.radius);
   if (document.getElementById('shopOverlay').classList.contains('visible')) updateShop();
 }
 
@@ -4682,9 +4683,7 @@ function openShop() {
 function updateShop() {
   const nextUpkeep = calcTotalUpkeep();
   const upkeepStr = nextUpkeep > 0 ? `  |  Next upkeep: ${nextUpkeep} pts` : '';
-  const remains = game.deadBodies.length + game.friedCorpses.length + game.bloodSplats.length;
-  const cleanerState = game.cleaner && game.cleaner.active ? 'Cleaner: Sweeping' : remains > 0 ? 'Cleaner: Ready' : 'Cleaner: Idle';
-  document.getElementById('shopPoints').textContent = `Kills: ${game.kills}  |  Points: ${game.score}  |  Converts: ${game.convertedUnits}${upkeepStr}  |  ${cleanerState}  |  Mess: ${remains}`;
+  document.getElementById('shopPoints').textContent = `Kills: ${game.kills}  |  Points: ${game.score}  |  Converts: ${game.convertedUnits}${upkeepStr}`;
   const grid = document.getElementById('shopGrid');
   grid.innerHTML = '';
 
