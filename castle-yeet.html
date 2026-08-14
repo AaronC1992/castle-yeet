@@ -5156,9 +5156,20 @@ document.addEventListener('keydown', (e) => {
 // ============================================================
 let _touchId = null;
 
+function cancelTouchGesture() {
+  if (game && game.grabbedEnemy) {
+    game.grabbedEnemy.grabbed = false;
+    game.grabbedEnemy = null;
+  }
+  _mouseHistory = [];
+  _touchId = null;
+  canvas.style.cursor = 'default';
+}
+
 canvas.addEventListener('touchstart', (e) => {
   e.preventDefault();
   if (!game) return;
+  if (_touchId !== null) return;
   const t = e.changedTouches[0];
   _touchId = t.identifier;
   handlePointerDown(t.clientX, t.clientY);
@@ -5190,8 +5201,26 @@ canvas.addEventListener('touchcancel', (e) => {
   if (!game) return;
   for (const t of e.changedTouches) {
     if (t.identifier === _touchId) {
-      handlePointerUp(game.mouseX, game.mouseY);
+      cancelTouchGesture();
+    }
+  }
+}, { passive: false });
+
+window.addEventListener('touchend', (e) => {
+  if (!game || _touchId === null) return;
+  for (const t of e.changedTouches) {
+    if (t.identifier === _touchId) {
+      handlePointerUp(t.clientX, t.clientY);
       _touchId = null;
+    }
+  }
+}, { passive: false });
+
+window.addEventListener('touchcancel', (e) => {
+  if (!game || _touchId === null) return;
+  for (const t of e.changedTouches) {
+    if (t.identifier === _touchId) {
+      cancelTouchGesture();
     }
   }
 }, { passive: false });
