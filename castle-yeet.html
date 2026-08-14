@@ -1377,11 +1377,22 @@ function spawnParticle(...args) {
   return true;
 }
 
-function registerYeetSkill(label, bonus = 0, charge = 10, color = '#ffcc44') {
+const YEET_COMBO_CHARGE = {
+  'CATCH AND RELEASE': 14,
+  'DOUBLE YEET': 12,
+  'TRIPLE YEET': 20,
+  'AIR MAIL': 20,
+  'GIANT KILLER': 18,
+  'BOWLING!': 24,
+  'CASTLE DELIVERY': 16,
+};
+
+function registerYeetSkill(label, bonus = 0, color = '#ffcc44') {
   if (!game) return;
   game.yeetCombo = (game.yeetCombo || 0) + 1;
   game.yeetComboTimer = 4.5;
-  game.ultimateCharge = Math.min(100, (game.ultimateCharge || 0) + charge);
+  const comboCharge = YEET_COMBO_CHARGE[label] || 0;
+  game.ultimateCharge = Math.min(100, (game.ultimateCharge || 0) + comboCharge);
   if (bonus > 0) {
     game.score += bonus;
     game.totalMoney = (game.totalMoney || 0) + bonus;
@@ -1413,12 +1424,12 @@ function activateYeetUltimate() {
 
 function registerEnemyThrow(enemy) {
   if (enemy.grabbedFromFlight) {
-    registerYeetSkill('CATCH AND RELEASE', 30, 14, '#ff9966');
+    registerYeetSkill('CATCH AND RELEASE', 30, '#ff9966');
     enemy.grabbedFromFlight = false;
   }
   enemy.yeetCount++;
-  if (enemy.yeetCount === 2) registerYeetSkill('DOUBLE YEET', 25, 12, '#ff9944');
-  if (enemy.yeetCount === 3) registerYeetSkill('TRIPLE YEET', 60, 20, '#ff6644');
+  if (enemy.yeetCount === 2) registerYeetSkill('DOUBLE YEET', 25, '#ff9944');
+  if (enemy.yeetCount === 3) registerYeetSkill('TRIPLE YEET', 60, '#ff6644');
 }
 
 class GoreChunk {
@@ -2125,7 +2136,7 @@ class Enemy {
           // Lethal fall
           this.dead = true;
           if (fallHeight >= 260) {
-            registerYeetSkill('AIR MAIL', 40, 20, '#ffdd66');
+            registerYeetSkill('AIR MAIL', 40, '#ffdd66');
           }
           // A lethal fall can crush one nearby grounded enemy.
           let crushed = null;
@@ -2146,11 +2157,11 @@ class Enemy {
             const crushDamage = 8 + Math.max(0, fallHeight - safeDrop) * 0.18;
             crushed.takeDamage(crushDamage, 'fall_impact');
             if (crushed.type === 'giant' || crushed.type === 'giant_stickman' || crushed.type === 'mega_giant') {
-              registerYeetSkill('GIANT KILLER', 35, 18, '#88ccff');
+              registerYeetSkill('GIANT KILLER', 35, '#88ccff');
             }
             if (crushed.dead) {
               playFallingOnAnotherSplat();
-              registerYeetSkill('BOWLING!', 50, 24, '#66ff66');
+              registerYeetSkill('BOWLING!', 50, '#66ff66');
             }
             game.screenShake = Math.max(game.screenShake, 0.18);
           }
@@ -2177,7 +2188,7 @@ class Enemy {
         this.throwAudio = null;
         this.dead = true;
         if (this.y < -500) {
-          registerYeetSkill('AIR MAIL', 40, 20, '#ffdd66');
+            registerYeetSkill('AIR MAIL', 40, '#ffdd66');
         }
         game.kills += 1;
         const bonus = game.speedMult > 1 ? game.speedMult : 1;
@@ -4448,37 +4459,172 @@ function drawHUD(ctx) {
       rx2 += ctx.measureText(`Converting: ${game.converting.length}/${game.maxConversionSlots} | Ready: ${game.convertedUnits}`).width + 24;
     }
 
-    if (game.yeetCombo > 0 || game.ultimateCharge > 0 || game.ultimateTimer > 0) {
+    if (game.yeetCombo > 0) {
       ctx.fillStyle = '#ffcc44';
-      const ultimateText = game.ultimateTimer > 0
-        ? `ULTIMATE YEET ${Math.ceil(game.ultimateTimer)}s`
-        : `ULT ${Math.floor(game.ultimateCharge)}%`;
-      ctx.fillText(`YEET x${game.yeetCombo}  ${ultimateText}`, rx2, 41);
+      ctx.fillText(`YEET COMBO x${game.yeetCombo}`, rx2, 41);
     }
   }
 
-  const yeetBarW = Math.min(280, w * 0.34);
-  const yeetBarH = 10;
-  const yeetBarX = (w - yeetBarW) / 2;
-  const yeetBarY = hasRow2 ? 56 : 40;
-  const yeetRatio = Math.max(0, Math.min(1, game.ultimateCharge / 100));
+  // Stylish glowing & shaking YEET Bar
+  const yeetBarW = Math.min(300, w * 0.36);
+  const yeetBarH = 15;
   const ultimateActive = game.ultimateTimer > 0;
-  const barPulse = game.ultimateCharge >= 80 && !ultimateActive ? 0.7 + Math.sin(game.time * 12) * 0.3 : 1;
+
+  // Shake effect when active or almost full
+  let barShakeX = 0;
+  let barShakeY = 0;
+  if (ultimateActive) {
+    barShakeX = (Math.random() - 0.5) * 5;
+    barShakeY = (Math.random() - 0.5) * 3;
+  } else if (game.ultimateCharge >= 80) {
+    barShakeX = (Math.random() - 0.5) * 2;
+    barShakeY = (Math.random() - 0.5) * 1.5;
+  }
+
+  const yeetBarX = (w - yeetBarW) / 2 + barShakeX;
+  const yeetBarY = (hasRow2 ? 56 : 40) + barShakeY;
+  const yeetRatio = Math.max(0, Math.min(1, game.ultimateCharge / 100));
+
   ctx.save();
-  ctx.globalAlpha = ultimateActive ? 1 : 0.9;
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
-  ctx.fillRect(yeetBarX, yeetBarY, yeetBarW, yeetBarH);
-  ctx.strokeStyle = ultimateActive ? '#66ccff' : '#ffcc44';
-  ctx.lineWidth = ultimateActive ? 2 : 1;
-  ctx.strokeRect(yeetBarX, yeetBarY, yeetBarW, yeetBarH);
-  ctx.globalAlpha = ultimateActive ? 1 : barPulse;
-  ctx.fillStyle = ultimateActive ? '#168cff' : (game.ultimateCharge >= 80 ? '#ffe066' : '#ff9d3d');
-  ctx.fillRect(yeetBarX + 1, yeetBarY + 1, (yeetBarW - 2) * (ultimateActive ? 1 : yeetRatio), yeetBarH - 2);
-  ctx.globalAlpha = 1;
-  ctx.fillStyle = ultimateActive ? '#b9eaff' : '#fff1b0';
-  ctx.font = 'bold 9px Segoe UI';
+
+  // Outer Glow Effect
+  if (ultimateActive) {
+    ctx.shadowColor = '#00f0ff';
+    ctx.shadowBlur = 16 + Math.sin(game.time * 12) * 6;
+  } else if (game.ultimateCharge >= 80) {
+    ctx.shadowColor = '#ffcc00';
+    ctx.shadowBlur = 12 + Math.sin(game.time * 10) * 4;
+  } else if (game.ultimateCharge > 0) {
+    ctx.shadowColor = '#ff6600';
+    ctx.shadowBlur = 6;
+  } else {
+    ctx.shadowBlur = 0;
+  }
+
+  // Dark Beveled Background Frame
+  ctx.fillStyle = 'rgba(10, 10, 18, 0.88)';
+  if (ctx.roundRect) {
+    ctx.beginPath();
+    ctx.roundRect(yeetBarX, yeetBarY, yeetBarW, yeetBarH, 4);
+    ctx.fill();
+  } else {
+    ctx.fillRect(yeetBarX, yeetBarY, yeetBarW, yeetBarH);
+  }
+
+  // Metallic / Neon Border
+  ctx.strokeStyle = ultimateActive
+    ? '#70e0ff'
+    : (game.ultimateCharge >= 80 ? '#ffe866' : '#ffaa33');
+  ctx.lineWidth = ultimateActive ? 2.5 : 1.5;
+  if (ctx.roundRect) {
+    ctx.beginPath();
+    ctx.roundRect(yeetBarX, yeetBarY, yeetBarW, yeetBarH, 4);
+    ctx.stroke();
+  } else {
+    ctx.strokeRect(yeetBarX, yeetBarY, yeetBarW, yeetBarH);
+  }
+
+  ctx.shadowBlur = 0;
+
+  // Fill Bar Gradient
+  const currentFillRatio = ultimateActive ? 1 : yeetRatio;
+  if (currentFillRatio > 0) {
+    const fillW = Math.max(0, (yeetBarW - 4) * currentFillRatio);
+
+    const fillGrad = ctx.createLinearGradient(yeetBarX + 2, yeetBarY, yeetBarX + 2 + fillW, yeetBarY);
+    if (ultimateActive) {
+      fillGrad.addColorStop(0, '#0088ff');
+      fillGrad.addColorStop(0.5, '#00f0ff');
+      fillGrad.addColorStop(1, '#ffffff');
+    } else if (game.ultimateCharge >= 80) {
+      fillGrad.addColorStop(0, '#ff3300');
+      fillGrad.addColorStop(0.5, '#ffaa00');
+      fillGrad.addColorStop(1, '#fff066');
+    } else {
+      fillGrad.addColorStop(0, '#e63900');
+      fillGrad.addColorStop(0.7, '#ff8c00');
+      fillGrad.addColorStop(1, '#ffc800');
+    }
+
+    ctx.save();
+    ctx.beginPath();
+    if (ctx.roundRect) {
+      ctx.roundRect(yeetBarX + 2, yeetBarY + 2, yeetBarW - 4, yeetBarH - 4, 3);
+    } else {
+      ctx.rect(yeetBarX + 2, yeetBarY + 2, yeetBarW - 4, yeetBarH - 4);
+    }
+    ctx.clip();
+
+    ctx.fillStyle = fillGrad;
+    ctx.fillRect(yeetBarX + 2, yeetBarY + 2, fillW, yeetBarH - 4);
+
+    // Animated diagonal energy shimmer stripes
+    const stripeWidth = 10;
+    const stripeOffset = (game.time * (ultimateActive ? 100 : 45)) % (stripeWidth * 2);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.22)';
+    ctx.beginPath();
+    for (let sx = -stripeWidth * 2 + stripeOffset; sx < fillW + stripeWidth; sx += stripeWidth * 2) {
+      ctx.moveTo(yeetBarX + 2 + sx, yeetBarY + yeetBarH);
+      ctx.lineTo(yeetBarX + 2 + sx + stripeWidth, yeetBarY + 2);
+      ctx.lineTo(yeetBarX + 2 + sx + stripeWidth + 5, yeetBarY + 2);
+      ctx.lineTo(yeetBarX + 2 + sx + 5, yeetBarY + yeetBarH);
+    }
+    ctx.fill();
+
+    // Top Gloss Highlight
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+    ctx.fillRect(yeetBarX + 2, yeetBarY + 2, fillW, (yeetBarH - 4) / 2);
+
+    ctx.restore();
+
+    // Spawn electric blue / golden sparks when active or charged!
+    if (ultimateActive && Math.random() < 0.3) {
+      const px = yeetBarX + Math.random() * yeetBarW;
+      const py = yeetBarY + Math.random() * yeetBarH;
+      spawnParticle(
+        px, py,
+        (Math.random() - 0.5) * 30,
+        -15 - Math.random() * 30,
+        Math.random() < 0.6 ? '#00f0ff' : '#ffffff',
+        0.25 + Math.random() * 0.2,
+        1.5 + Math.random() * 1.5
+      );
+    } else if (game.ultimateCharge >= 80 && !ultimateActive && Math.random() < 0.15) {
+      const px = yeetBarX + Math.random() * yeetBarW;
+      const py = yeetBarY + Math.random() * yeetBarH;
+      spawnParticle(
+        px, py,
+        (Math.random() - 0.5) * 20,
+        -10 - Math.random() * 25,
+        '#ffe866',
+        0.2 + Math.random() * 0.2,
+        1.2 + Math.random() * 1.2
+      );
+    }
+  }
+
+  // Text Overlay with Shadow
+  ctx.save();
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
+  ctx.shadowBlur = 4;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '900 10px "Segoe UI", sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText(ultimateActive ? 'ULTIMATE YEET ACTIVE' : `YEET ${Math.floor(game.ultimateCharge)}%`, w / 2, yeetBarY + 8);
+  ctx.textBaseline = 'middle';
+
+  let barText = '';
+  if (ultimateActive) {
+    barText = `⚡ ULTIMATE YEET ACTIVE (${Math.ceil(game.ultimateTimer)}s) ⚡`;
+  } else if (game.ultimateCharge >= 100) {
+    barText = '🔥 YEET BAR MAXED 🔥';
+  } else {
+    barText = `YEET CHARGE ${Math.floor(game.ultimateCharge)}%`;
+  }
+
+  ctx.fillText(barText, yeetBarX + yeetBarW / 2, yeetBarY + yeetBarH / 2);
+  ctx.restore();
+
   ctx.restore();
 
   if (game.yeetBannerTimer > 0) {
@@ -5246,7 +5392,7 @@ function handlePointerUp(clientX, clientY) {
     }
     const deliveryDistance = Math.max(0, castleX() - en.grabStartX);
     if (deliveryDistance >= canvas.width * 0.35) {
-      registerYeetSkill('CASTLE DELIVERY', 35 + (isCluster ? grabbedEnemies.length * 10 : 0), 16 + grabbedEnemies.length * 2, '#88ff88');
+      registerYeetSkill('CASTLE DELIVERY', 35 + (isCluster ? grabbedEnemies.length * 10 : 0), '#88ff88');
     }
     // Award points for the capture
     const bonus = game.speedMult > 1 ? game.speedMult : 1;
