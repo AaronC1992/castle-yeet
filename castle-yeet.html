@@ -552,7 +552,7 @@ canvas {
     <p>Catch enemies while they are falling, then throw them again for CATCH AND RELEASE. Throw the same enemy again for DOUBLE YEET and TRIPLE YEET.</p>
     <p>Build your YEET combo with AIR MAIL, BOWLING, CASTLE DELIVERY, and GIANT KILLER. Skilled throws earn bonus money and charge your ULTIMATE YEET.</p>
     <p>Archers, Wizards, and Bombers all come from converted enemies. Assign them to towers between waves.</p>
-    <p>Press <kbd>R</kbd> or tap the ultimate control when ULTIMATE YEET is ready. Grab one enemy to pick up a nearby cluster, then throw the whole pile.</p>
+    <p>Fill the YEET bar with skilled throws. When ULTIMATE YEET activates, grab one enemy to pick up a nearby cluster, then throw the whole pile.</p>
     <p>When the wave timer ends, spawning stops, but remaining enemies must still be defeated.</p>
     <p>Between waves, assign your converts to castle towers, each building has different defensive abilities. Survive as many waves as you can!</p>
   </div>
@@ -1396,6 +1396,9 @@ function registerYeetSkill(label, bonus = 0, charge = 10, color = '#ffcc44') {
     color,
     20
   ));
+  if (game.ultimateCharge >= 100 && game.ultimateTimer <= 0) {
+    activateYeetUltimate();
+  }
 }
 
 function activateYeetUltimate() {
@@ -4449,10 +4452,34 @@ function drawHUD(ctx) {
       ctx.fillStyle = '#ffcc44';
       const ultimateText = game.ultimateTimer > 0
         ? `ULTIMATE YEET ${Math.ceil(game.ultimateTimer)}s`
-        : (game.ultimateCharge >= 100 ? 'ULT READY [R]' : `ULT ${Math.floor(game.ultimateCharge)}%`);
+        : `ULT ${Math.floor(game.ultimateCharge)}%`;
       ctx.fillText(`YEET x${game.yeetCombo}  ${ultimateText}`, rx2, 41);
     }
   }
+
+  const yeetBarW = Math.min(280, w * 0.34);
+  const yeetBarH = 10;
+  const yeetBarX = (w - yeetBarW) / 2;
+  const yeetBarY = hasRow2 ? 56 : 40;
+  const yeetRatio = Math.max(0, Math.min(1, game.ultimateCharge / 100));
+  const ultimateActive = game.ultimateTimer > 0;
+  const barPulse = game.ultimateCharge >= 80 && !ultimateActive ? 0.7 + Math.sin(game.time * 12) * 0.3 : 1;
+  ctx.save();
+  ctx.globalAlpha = ultimateActive ? 1 : 0.9;
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+  ctx.fillRect(yeetBarX, yeetBarY, yeetBarW, yeetBarH);
+  ctx.strokeStyle = ultimateActive ? '#66ccff' : '#ffcc44';
+  ctx.lineWidth = ultimateActive ? 2 : 1;
+  ctx.strokeRect(yeetBarX, yeetBarY, yeetBarW, yeetBarH);
+  ctx.globalAlpha = ultimateActive ? 1 : barPulse;
+  ctx.fillStyle = ultimateActive ? '#168cff' : (game.ultimateCharge >= 80 ? '#ffe066' : '#ff9d3d');
+  ctx.fillRect(yeetBarX + 1, yeetBarY + 1, (yeetBarW - 2) * (ultimateActive ? 1 : yeetRatio), yeetBarH - 2);
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = ultimateActive ? '#b9eaff' : '#fff1b0';
+  ctx.font = 'bold 9px Segoe UI';
+  ctx.textAlign = 'center';
+  ctx.fillText(ultimateActive ? 'ULTIMATE YEET ACTIVE' : `YEET ${Math.floor(game.ultimateCharge)}%`, w / 2, yeetBarY + 8);
+  ctx.restore();
 
   if (game.yeetBannerTimer > 0) {
     ctx.save();
@@ -4501,6 +4528,9 @@ function gameLoop(timestamp) {
   game.time += rawDt;
   game.cloudOffset += 10 * game.speedMult * rawDt;
   game.screenShake = Math.max(0, game.screenShake - dt * 2);
+  if (game.ultimateTimer > 0) {
+    game.screenShake = Math.max(game.screenShake, 0.08 + Math.sin(game.time * 18) * 0.035);
+  }
   if (game.yeetComboTimer > 0) {
     game.yeetComboTimer = Math.max(0, game.yeetComboTimer - dt);
     if (game.yeetComboTimer === 0) game.yeetCombo = 0;
@@ -5138,10 +5168,6 @@ function handlePointerDown(clientX, clientY) {
   const my = game.mouseY;
 
   // Click speed button in HUD (top-right area)
-  if (my <= 36 && mx >= canvas.width - 280 && mx < canvas.width - 140) {
-    activateYeetUltimate();
-    return;
-  }
   if (my <= 36 && mx >= canvas.width - 140) {
     game.speedMult = game.speedMult >= 3 ? 1 : game.speedMult + 1;
     return;
@@ -5269,9 +5295,6 @@ document.addEventListener('keydown', (e) => {
 
   if (key === 'f') {
     game.speedMult = game.speedMult >= 3 ? 1 : game.speedMult + 1;
-  }
-  if (key === 'r') {
-    activateYeetUltimate();
   }
 });
 
