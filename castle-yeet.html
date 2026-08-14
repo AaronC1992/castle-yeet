@@ -2008,14 +2008,8 @@ class Enemy {
 
       // Keep thrown enemies from crossing behind the castle.
       if (this.x > castleX()) {
-        stopFallingScream(this.throwAudio);
-        this.throwAudio = null;
         this.x = castleX() - 30 * this.size;
-        this.y = terrainYAt(this.x);
-        this.flying = false;
         this.throwVX = 0;
-        this.throwVY = 0;
-        return;
       }
 
       // Midair touch damage is disabled to prevent instant collision exploits.
