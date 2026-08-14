@@ -550,9 +550,9 @@ canvas {
     <h2>How to Play</h2>
     <p>Click and drag enemies to grab them, then fling them into the sky to destroy them. Build a Temple first, then drop enemies on your castle to convert them into troops!</p>
     <p>Catch enemies while they are falling, then throw them again for CATCH AND RELEASE. Throw the same enemy again for DOUBLE YEET and TRIPLE YEET.</p>
-    <p>Build your YEET combo with AIR MAIL, BOWLING, CASTLE DELIVERY, and GIANT KILLER. Skilled throws earn bonus money and charge your YEET STORM ultimate.</p>
+    <p>Build your YEET combo with AIR MAIL, BOWLING, CASTLE DELIVERY, and GIANT KILLER. Skilled throws earn bonus money and charge your ULTIMATE YEET.</p>
     <p>Archers, Wizards, and Bombers all come from converted enemies. Assign them to towers between waves.</p>
-    <p>Press <kbd>R</kbd> or tap the ultimate control when YEET STORM is ready. Press <kbd>F</kbd> to change game speed.</p>
+    <p>Press <kbd>R</kbd> or tap the ultimate control when ULTIMATE YEET is ready. Grab one enemy to pick up a nearby cluster, then throw the whole pile.</p>
     <p>When the wave timer ends, spawning stops, but remaining enemies must still be defeated.</p>
     <p>Between waves, assign your converts to castle towers, each building has different defensive abilities. Survive as many waves as you can!</p>
   </div>
@@ -1400,18 +1400,12 @@ function registerYeetSkill(label, bonus = 0, charge = 10, color = '#ffcc44') {
 
 function activateYeetUltimate() {
   if (!game || game.ultimateCharge < 100 || game.gameOver) return;
-  let hitCount = 0;
-  for (const enemy of game.enemies) {
-    if (enemy.dead || enemy.grabbed) continue;
-    enemy.takeDamage(Math.max(1, enemy.maxHp * 0.5), 'ultimate');
-    hitCount++;
-  }
-  if (hitCount === 0) return;
   game.ultimateCharge = 0;
-  game.yeetBanner = 'YEET STORM';
+  game.ultimateTimer = 5;
+  game.yeetBanner = 'ULTIMATE YEET';
   game.yeetBannerTimer = 2;
-  game.screenShake = 0.4;
-  game.floatingTexts.push(new FloatingText(canvas.width * 0.5, canvas.height * 0.36, `YEET STORM  x${hitCount}`, '#88ccff', 24));
+  game.screenShake = 0.2;
+  game.floatingTexts.push(new FloatingText(canvas.width * 0.5, canvas.height * 0.36, 'GRAB A CLUSTER: 5 to 10 ENEMIES', '#88ccff', 22));
 }
 
 function registerEnemyThrow(enemy) {
@@ -3367,12 +3361,14 @@ function initGame() {
     yeetBanner: '',
     yeetBannerTimer: 0,
     ultimateCharge: 0,
+    ultimateTimer: 0,
     archeryTimer: 0,
     wizardTimer: 0,
     archerAttackAnim: 0,
     wizardAttackAnim: 0,
     workshopRepairTimer: 0,
     grabbedEnemy: null,
+    grabbedEnemies: [],
     grabOffsetX: 0,
     grabOffsetY: 0,
     mouseX: 0,
@@ -4379,7 +4375,7 @@ function drawCastle(ctx) {
 function drawHUD(ctx) {
   if (!game) return;
   const w = canvas.width;
-  const hasRow2 = UPGRADES.mana.built || (UPGRADES.demo.built && UPGRADES.demo.count > 0) || game.converting.length > 0 || game.convertedUnits > 0 || game.yeetCombo > 0 || game.ultimateCharge > 0;
+  const hasRow2 = UPGRADES.mana.built || (UPGRADES.demo.built && UPGRADES.demo.count > 0) || game.converting.length > 0 || game.convertedUnits > 0 || game.yeetCombo > 0 || game.ultimateCharge > 0 || game.ultimateTimer > 0;
   const barH = hasRow2 ? 50 : 36;
 
   // Top bar
@@ -4449,9 +4445,11 @@ function drawHUD(ctx) {
       rx2 += ctx.measureText(`Converting: ${game.converting.length}/${game.maxConversionSlots} | Ready: ${game.convertedUnits}`).width + 24;
     }
 
-    if (game.yeetCombo > 0 || game.ultimateCharge > 0) {
+    if (game.yeetCombo > 0 || game.ultimateCharge > 0 || game.ultimateTimer > 0) {
       ctx.fillStyle = '#ffcc44';
-      const ultimateText = game.ultimateCharge >= 100 ? 'ULT READY [R]' : `ULT ${Math.floor(game.ultimateCharge)}%`;
+      const ultimateText = game.ultimateTimer > 0
+        ? `ULTIMATE YEET ${Math.ceil(game.ultimateTimer)}s`
+        : (game.ultimateCharge >= 100 ? 'ULT READY [R]' : `ULT ${Math.floor(game.ultimateCharge)}%`);
       ctx.fillText(`YEET x${game.yeetCombo}  ${ultimateText}`, rx2, 41);
     }
   }
@@ -4508,6 +4506,7 @@ function gameLoop(timestamp) {
     if (game.yeetComboTimer === 0) game.yeetCombo = 0;
   }
   game.yeetBannerTimer = Math.max(0, game.yeetBannerTimer - dt);
+  game.ultimateTimer = Math.max(0, (game.ultimateTimer || 0) - dt);
   if (game.waveActive) {
     game.tipRotationTimer += rawDt;
     if (game.tipRotationTimer >= 4.5) {
@@ -4540,8 +4539,11 @@ function gameLoop(timestamp) {
 
   // Grabbed enemy follows mouse
   if (game.grabbedEnemy && !game.grabbedEnemy.dead) {
-    game.grabbedEnemy.x = game.mouseX;
-    game.grabbedEnemy.y = game.mouseY;
+    for (const grabbed of game.grabbedEnemies) {
+      if (grabbed.dead) continue;
+      grabbed.x = game.mouseX + grabbed.grabOffsetX;
+      grabbed.y = game.mouseY + grabbed.grabOffsetY;
+    }
   }
 
   // Archer auto-fire
@@ -5105,6 +5107,28 @@ function getThrowVelocity() {
   return { vx, vy };
 }
 
+function getGrabbedEnemies() {
+  if (!game || !game.grabbedEnemy) return [];
+  return game.grabbedEnemies.length > 0 ? game.grabbedEnemies.filter(enemy => !enemy.dead) : [game.grabbedEnemy];
+}
+
+function throwGrabbedEnemies(vx, vy) {
+  const grabbedEnemies = getGrabbedEnemies();
+  for (const enemy of grabbedEnemies) {
+    enemy.grabbed = false;
+    enemy.flying = true;
+    enemy.peakY = enemy.y;
+    enemy.throwVX = vx;
+    enemy.throwVY = vy;
+    enemy.throwAudio = playFallingScream();
+    registerEnemyThrow(enemy);
+  }
+  game.grabbedEnemies = [];
+  game.grabbedEnemy = null;
+  _mouseHistory = [];
+  canvas.style.cursor = 'default';
+}
+
 function handlePointerDown(clientX, clientY) {
   if (!game || game.gameOver) return;
 
@@ -5135,7 +5159,33 @@ function handlePointerDown(clientX, clientY) {
       en.attacking = false;
       en.grabStartX = en.x;
       en.grabbedFromFlight = en.flying;
+      en.grabOffsetX = 0;
+      en.grabOffsetY = 0;
       game.grabbedEnemy = en;
+      game.grabbedEnemies = [en];
+      if (game.ultimateTimer > 0) {
+        const cluster = game.enemies
+          .filter(other => other !== en && !other.dead && !other.grabbed && other.canThrow && !other.flying)
+          .map(other => ({ enemy: other, distance: Math.hypot(other.x - en.x, terrainYAt(other.x) - terrainYAt(en.x)) }))
+          .filter(item => item.distance <= 150)
+          .sort((a, b) => a.distance - b.distance)
+          .slice(0, 9);
+        for (const item of cluster) {
+          const grabbed = item.enemy;
+          grabbed.grabbed = true;
+          grabbed.attacking = false;
+          grabbed.grabStartX = grabbed.x;
+          grabbed.grabbedFromFlight = false;
+          grabbed.grabOffsetX = grabbed.x - en.x;
+          grabbed.grabOffsetY = terrainYAt(grabbed.x) - terrainYAt(en.x);
+          game.grabbedEnemies.push(grabbed);
+        }
+        game.ultimateTimer = 0;
+        if (game.grabbedEnemies.length > 1) {
+          game.yeetBanner = `CLUSTER YEET  x${game.grabbedEnemies.length}`;
+          game.yeetBannerTimer = 1.5;
+        }
+      }
       canvas.style.cursor = 'grabbing';
       _mouseHistory = []; // clear history at grab start
       return;
@@ -5149,58 +5199,42 @@ function handlePointerUp(clientX, clientY) {
   updatePointerPosition(clientX, clientY);
 
   const en = game.grabbedEnemy;
-  en.grabbed = false;
+  const grabbedEnemies = getGrabbedEnemies();
+  const isCluster = grabbedEnemies.length > 1;
 
   // Check if dropped on castle for conversion
   if (game.mouseX >= castleX() - 80 && game.mouseY <= groundY()) {
     if (!UPGRADES.temple.built) {
       game.floatingTexts.push(new FloatingText(game.mouseX, game.mouseY - 20, 'BUILD A TEMPLE FIRST!', '#ffaa44', 14));
       // No temple — throw them away instead
-      registerEnemyThrow(en);
-      en.flying = true;
-      en.peakY = game.mouseY;
       const noTempleVel = getThrowVelocity();
-      en.throwVX = noTempleVel.vx;
-      en.throwVY = noTempleVel.vy < 0 ? noTempleVel.vy : -400;
-      en.throwAudio = playFallingScream();
-      en.x = game.mouseX;
-      en.y = game.mouseY;
-      _mouseHistory = [];
-      game.grabbedEnemy = null;
-      canvas.style.cursor = 'default';
+      throwGrabbedEnemies(noTempleVel.vx, noTempleVel.vy < 0 ? noTempleVel.vy : -400);
       return;
     }
-    if (game.converting.length >= game.maxConversionSlots) {
+    if (game.converting.length + grabbedEnemies.length > game.maxConversionSlots) {
       game.floatingTexts.push(new FloatingText(game.mouseX, game.mouseY - 10, `CONVERSION FULL (max ${game.maxConversionSlots})`, '#ff8888', 12));
       // If converters are full, treat this as a normal throw.
-      registerEnemyThrow(en);
-      en.flying = true;
-      en.peakY = game.mouseY;
       const busyVel = getThrowVelocity();
-      en.throwVX = busyVel.vx;
-      en.throwVY = busyVel.vy < 0 ? busyVel.vy : Math.max(-400, busyVel.vy * 0.4);
-      en.throwAudio = playFallingScream();
-      en.x = game.mouseX;
-      en.y = game.mouseY;
-      _mouseHistory = [];
-      game.grabbedEnemy = null;
-      canvas.style.cursor = 'default';
+      throwGrabbedEnemies(busyVel.vx, busyVel.vy < 0 ? busyVel.vy : Math.max(-400, busyVel.vy * 0.4));
       return;
     }
-    en.dead = true;
     const deliveryDistance = Math.max(0, castleX() - en.grabStartX);
     if (deliveryDistance >= canvas.width * 0.35) {
-      registerYeetSkill('CASTLE DELIVERY', 35, 16, '#88ff88');
+      registerYeetSkill('CASTLE DELIVERY', 35 + (isCluster ? grabbedEnemies.length * 10 : 0), 16 + grabbedEnemies.length * 2, '#88ff88');
     }
     // Award points for the capture
     const bonus = game.speedMult > 1 ? game.speedMult : 1;
-    const earned = Math.round(en.points * bonus);
+    let earned = 0;
+    for (const grabbed of grabbedEnemies) {
+      grabbed.grabbed = false;
+      grabbed.dead = true;
+      earned += Math.round(grabbed.points * bonus);
+      game.converting.push({ timer: 0, maxTimer: CONVERSION_DURATION_SECONDS });
+    }
     game.score += earned;
     const label = bonus > 1 ? `+${earned} (${bonus}x)` : `+${earned}`;
     game.floatingTexts.push(new FloatingText(game.mouseX, game.mouseY - 30, label, '#ffdd44', 14));
-    // Start conversion timer (~50 game-seconds)
-    game.converting.push({ timer: 0, maxTimer: CONVERSION_DURATION_SECONDS });
-    game.floatingTexts.push(new FloatingText(game.mouseX, game.mouseY - 10, 'CONVERTING...', '#88ff88', 12));
+    game.floatingTexts.push(new FloatingText(game.mouseX, game.mouseY - 10, isCluster ? `CONVERTING x${grabbedEnemies.length}...` : 'CONVERTING...', '#88ff88', 12));
     for (let i = 0; i < 8; i++) {
       spawnParticle(
         game.mouseX, game.mouseY, (Math.random()-0.5)*60, -40 - Math.random()*40,
@@ -5208,25 +5242,14 @@ function handlePointerUp(clientX, clientY) {
       );
     }
     if (document.getElementById('shopOverlay').classList.contains('visible')) updateShop();
+    game.grabbedEnemies = [];
     game.grabbedEnemy = null;
     canvas.style.cursor = 'default';
     return;
   }
 
-  registerEnemyThrow(en);
-  en.flying = true;
-  en.peakY = game.mouseY;
-
   const { vx, vy } = getThrowVelocity();
-  en.throwVX = vx;
-  en.throwVY = vy < 0 ? vy : Math.max(-400, vy * 0.4);
-  en.throwAudio = playFallingScream();
-  en.x = game.mouseX;
-  en.y = game.mouseY;
-  _mouseHistory = [];
-
-  game.grabbedEnemy = null;
-  canvas.style.cursor = 'default';
+  throwGrabbedEnemies(vx, vy < 0 ? vy : Math.max(-400, vy * 0.4));
 }
 
 canvas.addEventListener('mousemove', (e) => {
@@ -5258,7 +5281,8 @@ let _touchId = null;
 
 function cancelTouchGesture() {
   if (game && game.grabbedEnemy) {
-    game.grabbedEnemy.grabbed = false;
+    for (const grabbed of getGrabbedEnemies()) grabbed.grabbed = false;
+    game.grabbedEnemies = [];
     game.grabbedEnemy = null;
   }
   _mouseHistory = [];
