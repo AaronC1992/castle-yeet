@@ -2876,8 +2876,10 @@ class Enemy {
     const limbLen = 10 * s;
     const top = gy - bodyLen - headR * 2;
     const bot = gy + limbLen;
-    const halfW = Math.max(limbLen, headR) + 4;
-    return mx >= this.x - halfW && mx <= this.x + halfW && my >= top && my <= bot;
+    const airbornePadding = this.flying ? 14 * s : 0;
+    const halfW = Math.max(limbLen, headR) + 4 + airbornePadding;
+    return mx >= this.x - halfW && mx <= this.x + halfW
+      && my >= top - airbornePadding && my <= bot + airbornePadding;
   }
 }
 
@@ -5257,6 +5259,7 @@ function cancelTouchGesture() {
 canvas.addEventListener('touchstart', (e) => {
   e.preventDefault();
   if (!game) return;
+  if (_touchId !== null && !game.grabbedEnemy) _touchId = null;
   if (_touchId !== null) return;
   const t = e.changedTouches[0];
   _touchId = t.identifier;
