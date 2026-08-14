@@ -1386,6 +1386,7 @@ const YEET_COMBO_CHARGE = {
   'BOWLING!': 24,
   'CASTLE DELIVERY': 16,
 };
+const YEET_COOLDOWN_DURATION = 3;
 
 function registerYeetSkill(label, bonus = 0, color = '#ffcc44') {
   if (!game) return;
@@ -1407,13 +1408,13 @@ function registerYeetSkill(label, bonus = 0, color = '#ffcc44') {
     color,
     20
   ));
-  if (game.ultimateCharge >= 100 && game.ultimateTimer <= 0) {
+  if (game.ultimateCharge >= 100 && game.ultimateTimer <= 0 && game.ultimateCooldown <= 0) {
     activateYeetUltimate();
   }
 }
 
 function activateYeetUltimate() {
-  if (!game || game.ultimateCharge < 100 || game.gameOver) return;
+  if (!game || game.ultimateCharge < 100 || game.gameOver || game.ultimateCooldown > 0) return;
   game.ultimateCharge = 0;
   game.ultimateTimer = 5;
   game.yeetBanner = 'ULTIMATE YEET';
@@ -3376,6 +3377,7 @@ function initGame() {
     yeetBannerTimer: 0,
     ultimateCharge: 0,
     ultimateTimer: 0,
+    ultimateCooldown: 0,
     archeryTimer: 0,
     wizardTimer: 0,
     archerAttackAnim: 0,
@@ -4389,7 +4391,7 @@ function drawCastle(ctx) {
 function drawHUD(ctx) {
   if (!game) return;
   const w = canvas.width;
-  const hasRow2 = UPGRADES.mana.built || (UPGRADES.demo.built && UPGRADES.demo.count > 0) || game.converting.length > 0 || game.convertedUnits > 0 || game.yeetCombo > 0 || game.ultimateCharge > 0 || game.ultimateTimer > 0;
+  const hasRow2 = UPGRADES.mana.built || (UPGRADES.demo.built && UPGRADES.demo.count > 0) || game.converting.length > 0 || game.convertedUnits > 0 || game.yeetCombo > 0 || game.ultimateCharge > 0 || game.ultimateTimer > 0 || game.ultimateCooldown > 0;
   const barH = hasRow2 ? 50 : 36;
 
   // Top bar
@@ -4469,6 +4471,7 @@ function drawHUD(ctx) {
   const yeetBarW = Math.min(300, w * 0.36);
   const yeetBarH = 15;
   const ultimateActive = game.ultimateTimer > 0;
+  const ultimateCoolingDown = !ultimateActive && game.ultimateCooldown > 0;
 
   // Shake effect when active or almost full
   let barShakeX = 0;
@@ -4476,7 +4479,7 @@ function drawHUD(ctx) {
   if (ultimateActive) {
     barShakeX = (Math.random() - 0.5) * 5;
     barShakeY = (Math.random() - 0.5) * 3;
-  } else if (game.ultimateCharge >= 80) {
+  } else if (game.ultimateCharge >= 80 && !ultimateCoolingDown) {
     barShakeX = (Math.random() - 0.5) * 2;
     barShakeY = (Math.random() - 0.5) * 1.5;
   }
@@ -4484,6 +4487,7 @@ function drawHUD(ctx) {
   const yeetBarX = (w - yeetBarW) / 2 + barShakeX;
   const yeetBarY = (hasRow2 ? 56 : 40) + barShakeY;
   const yeetRatio = Math.max(0, Math.min(1, game.ultimateCharge / 100));
+  const cooldownRatio = Math.max(0, Math.min(1, game.ultimateCooldown / YEET_COOLDOWN_DURATION));
 
   ctx.save();
 
@@ -4491,7 +4495,7 @@ function drawHUD(ctx) {
   if (ultimateActive) {
     ctx.shadowColor = '#00f0ff';
     ctx.shadowBlur = 16 + Math.sin(game.time * 12) * 6;
-  } else if (game.ultimateCharge >= 80) {
+  } else if (game.ultimateCharge >= 80 && !ultimateCoolingDown) {
     ctx.shadowColor = '#ffcc00';
     ctx.shadowBlur = 12 + Math.sin(game.time * 10) * 4;
   } else if (game.ultimateCharge > 0) {
@@ -4514,7 +4518,7 @@ function drawHUD(ctx) {
   // Metallic / Neon Border
   ctx.strokeStyle = ultimateActive
     ? '#70e0ff'
-    : (game.ultimateCharge >= 80 ? '#ffe866' : '#ffaa33');
+    : (ultimateCoolingDown ? '#8aa0b8' : (game.ultimateCharge >= 80 ? '#ffe866' : '#ffaa33'));
   ctx.lineWidth = ultimateActive ? 2.5 : 1.5;
   if (ctx.roundRect) {
     ctx.beginPath();
@@ -4527,7 +4531,7 @@ function drawHUD(ctx) {
   ctx.shadowBlur = 0;
 
   // Fill Bar Gradient
-  const currentFillRatio = ultimateActive ? 1 : yeetRatio;
+  const currentFillRatio = ultimateActive ? 1 : (ultimateCoolingDown ? cooldownRatio : yeetRatio);
   if (currentFillRatio > 0) {
     const fillW = Math.max(0, (yeetBarW - 4) * currentFillRatio);
 
@@ -4536,6 +4540,10 @@ function drawHUD(ctx) {
       fillGrad.addColorStop(0, '#0088ff');
       fillGrad.addColorStop(0.5, '#00f0ff');
       fillGrad.addColorStop(1, '#ffffff');
+    } else if (ultimateCoolingDown) {
+      fillGrad.addColorStop(0, '#40566f');
+      fillGrad.addColorStop(0.5, '#7f9bb8');
+      fillGrad.addColorStop(1, '#c5d4e3');
     } else if (game.ultimateCharge >= 80) {
       fillGrad.addColorStop(0, '#ff3300');
       fillGrad.addColorStop(0.5, '#ffaa00');
@@ -4589,7 +4597,7 @@ function drawHUD(ctx) {
         0.25 + Math.random() * 0.2,
         1.5 + Math.random() * 1.5
       );
-    } else if (game.ultimateCharge >= 80 && !ultimateActive && Math.random() < 0.15) {
+    } else if (game.ultimateCharge >= 80 && !ultimateActive && !ultimateCoolingDown && Math.random() < 0.15) {
       const px = yeetBarX + Math.random() * yeetBarW;
       const py = yeetBarY + Math.random() * yeetBarH;
       spawnParticle(
@@ -4616,6 +4624,8 @@ function drawHUD(ctx) {
   let barText = '';
   if (ultimateActive) {
     barText = `⚡ ULTIMATE YEET ACTIVE (${Math.ceil(game.ultimateTimer)}s) ⚡`;
+  } else if (ultimateCoolingDown) {
+    barText = `YEET COOLDOWN (${Math.ceil(game.ultimateCooldown)}s)`;
   } else if (game.ultimateCharge >= 100) {
     barText = '🔥 YEET BAR MAXED 🔥';
   } else {
@@ -4682,7 +4692,15 @@ function gameLoop(timestamp) {
     if (game.yeetComboTimer === 0) game.yeetCombo = 0;
   }
   game.yeetBannerTimer = Math.max(0, game.yeetBannerTimer - dt);
+  const ultimateWasActive = game.ultimateTimer > 0;
   game.ultimateTimer = Math.max(0, (game.ultimateTimer || 0) - dt);
+  if (ultimateWasActive && game.ultimateTimer === 0) {
+    game.ultimateCooldown = YEET_COOLDOWN_DURATION;
+  }
+  game.ultimateCooldown = Math.max(0, (game.ultimateCooldown || 0) - dt);
+  if (game.ultimateCooldown === 0 && game.ultimateCharge >= 100 && game.ultimateTimer <= 0) {
+    activateYeetUltimate();
+  }
   if (game.waveActive) {
     game.tipRotationTimer += rawDt;
     if (game.tipRotationTimer >= 4.5) {
@@ -5353,6 +5371,7 @@ function handlePointerDown(clientX, clientY) {
           game.grabbedEnemies.push(grabbed);
         }
         game.ultimateTimer = 0;
+        game.ultimateCooldown = YEET_COOLDOWN_DURATION;
         if (game.grabbedEnemies.length > 1) {
           game.yeetBanner = `CLUSTER YEET  x${game.grabbedEnemies.length}`;
           game.yeetBannerTimer = 1.5;
