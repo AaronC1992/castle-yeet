@@ -2053,6 +2053,7 @@ class Enemy {
     this.throwAudio = null;
     this.flying = false;
     this.peakY = 0; // highest point reached while flying (lower Y = higher up)
+    this.screenBounceUsed = false;
     this.yeetCount = 0;
     this.grabStartX = this.x;
 
@@ -2112,6 +2113,27 @@ class Enemy {
 
       // Track peak height
       if (this.y < this.peakY) this.peakY = this.y;
+
+      // Sticky-toy screen bounce:
+      // when a thrown enemy leaves the visible top/sides, snap them back onto
+      // the screen edge and force a downward tumble instead of disappearing.
+      if (!this.screenBounceUsed && (this.y < -32 || this.x < -24 || this.x > canvas.width + 24)) {
+        this.screenBounceUsed = true;
+        const edgePadding = Math.max(18, 12 * this.size);
+        if (this.x < -24) {
+          this.x = edgePadding;
+          this.throwVX = Math.max(65, Math.abs(this.throwVX) * 0.35);
+        } else if (this.x > canvas.width + 24) {
+          this.x = canvas.width - edgePadding;
+          this.throwVX = -Math.max(65, Math.abs(this.throwVX) * 0.35);
+        } else {
+          this.x = Math.max(edgePadding, Math.min(canvas.width - edgePadding, this.x));
+          this.throwVX *= 0.45;
+        }
+        this.y = Math.max(-28, this.y);
+        this.throwVY = Math.max(160, Math.abs(this.throwVY) * 0.45 + 120);
+        game.screenShake = Math.max(game.screenShake, 0.12);
+      }
       // Check if hit ground
       const landingY = terrainYAt(this.x) - 10;
       if (this.y >= landingY) {
@@ -2185,8 +2207,8 @@ class Enemy {
         }
         // If no damage (tiny drop), they just resume walking
       }
-      // Off screen - dead (killed by throw)
-      if (this.y < -500 || this.x < -200 || this.x > canvas.width + 200) {
+      // Failsafe cleanup if physics ever sends a thrown enemy far out of range.
+      if (this.y < -900 || this.x < -650 || this.x > canvas.width + 650 || this.y > canvas.height + 650) {
         stopFallingScream(this.throwAudio);
         this.throwAudio = null;
         this.dead = true;
@@ -5313,6 +5335,7 @@ function throwGrabbedEnemies(vx, vy) {
   for (const enemy of grabbedEnemies) {
     enemy.grabbed = false;
     enemy.flying = true;
+    enemy.screenBounceUsed = false;
     enemy.peakY = enemy.y;
     enemy.throwVX = vx;
     enemy.throwVY = vy;
