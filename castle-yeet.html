@@ -1347,6 +1347,29 @@ const UPGRADES = {
     statUpgradeBaseCost: 2600,
     statUpgradeStep: 1300,
   },
+  guard: {
+    name: 'Guard Tower',
+    desc: 'Assign converts as guards. They station at the castle entrance and attack nearby enemies. Upgrade their equipment (and appearance!) or increase how many guards can be posted.',
+    buildCost: 5000,
+    unitCost: 0,
+    unitName: 'Guard',
+    upkeep: 10,
+    built: false,
+    count: 0,
+    convertBased: true,
+    damageUpgradeable: true,
+    damageLevel: 0,
+    damagePerLevel: 0.35,
+    damageUpgradeBaseCost: 1800,
+    damageUpgradeStep: 1000,
+    statUpgradeable: true,
+    statName: 'Capacity',
+    statLevel: 0,
+    statPerLevel: 1,
+    statUpgradeBaseCost: 1500,
+    statUpgradeStep: 800,
+    baseCapacity: 2,
+  },
   wall: {
     name: 'Make Wall More Wall',
     desc: 'Increase your castle max health by 25 HP each time you buy this upgrade.',
@@ -1369,7 +1392,8 @@ const GAME_TIPS = [
   'TIP: Repair the castle often so your converts stay safe and your defense lasts longer.',
   'TIP: Build a temple early, then convert enemies between waves to grow your army.',
   'TIP: Archers, wizards, and bombers all shine when you assign them before the next wave.',
-  'TIP: Keep the battlefield clean so you can spot incoming threats more easily.'
+  'TIP: Keep the battlefield clean so you can spot incoming threats more easily.',
+  'TIP: Guard Tower guards defend the castle entrance and scale with damage upgrades — upgrade them to unlock better weapons and armor!'
 ];
 
 // ============================================================
@@ -3433,8 +3457,10 @@ function initGame() {
     ultimateCooldown: 0,
     archeryTimer: 0,
     wizardTimer: 0,
+    guardTimer: 0,
     archerAttackAnim: 0,
     wizardAttackAnim: 0,
+    guardAttackAnim: 0,
     workshopRepairTimer: 0,
     grabbedEnemy: null,
     grabbedEnemies: [],
@@ -4279,6 +4305,253 @@ function drawDemolitionHut(ctx, bx, bldgY, count) {
   ctx.restore();
 }
 
+function drawGuardTower(ctx, bx, bldgY, count, damageLevel, attackAnim) {
+  ctx.save();
+
+  // Tower base
+  ctx.fillStyle = '#5a5060';
+  ctx.fillRect(bx - 16, bldgY - 8, 32, 32);
+  ctx.strokeStyle = '#2a1e30';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(bx - 16, bldgY - 8, 32, 32);
+
+  // Battlement top
+  ctx.fillStyle = '#6e6378';
+  ctx.fillRect(bx - 18, bldgY - 14, 36, 8);
+  ctx.fillRect(bx - 18, bldgY - 20, 8, 7);
+  ctx.fillRect(bx - 4, bldgY - 20, 8, 7);
+  ctx.fillRect(bx + 12, bldgY - 20, 6, 7);
+
+  // Portcullis / gate detail
+  ctx.fillStyle = '#1a1020';
+  ctx.fillRect(bx - 5, bldgY + 4, 10, 14);
+  ctx.strokeStyle = '#8877aa';
+  ctx.lineWidth = 0.8;
+  for (let gi = 0; gi < 3; gi++) {
+    ctx.beginPath();
+    ctx.moveTo(bx - 4 + gi * 4, bldgY + 4);
+    ctx.lineTo(bx - 4 + gi * 4, bldgY + 17);
+    ctx.stroke();
+  }
+  ctx.beginPath();
+  ctx.moveTo(bx - 5, bldgY + 9);
+  ctx.lineTo(bx + 5, bldgY + 9);
+  ctx.stroke();
+
+  // Count badge
+  if (count > 0) {
+    ctx.fillStyle = '#1a0e24';
+    ctx.beginPath();
+    ctx.arc(bx, bldgY + 22, 7, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#bb99ee';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+    ctx.fillStyle = '#ddbbff';
+    ctx.font = 'bold 9px Segoe UI';
+    ctx.textAlign = 'center';
+    ctx.fillText(count.toString(), bx, bldgY + 25);
+  }
+
+  // Guards stationed on the tower
+  if (count > 0) {
+    const displayed = Math.min(4, Math.max(1, count));
+    const spacing = displayed > 1 ? 28 / (displayed - 1) : 0;
+    for (let i = 0; i < displayed; i++) {
+      const gx = displayed === 1 ? bx : (bx - 14 + i * spacing);
+      const gy = bldgY - 18;
+      drawGuardUnit(ctx, gx, gy, damageLevel, attackAnim, i);
+    }
+  }
+
+  ctx.restore();
+}
+
+function drawGuardUnit(ctx, x, y, damageLevel, animTime, index) {
+  ctx.save();
+  ctx.translate(x, y);
+
+  const t = animTime > 0 ? animTime / 0.4 : 0;
+  const sway = Math.sin((game ? game.time : 0) * 2.2 + index * 1.4) * 1.2;
+
+  // Determine equipment tier based on damageLevel
+  const tier = damageLevel >= 9 ? 3 : damageLevel >= 6 ? 2 : damageLevel >= 3 ? 1 : 0;
+
+  // Body color: plain -> leather -> chainmail -> plate
+  const bodyColor = ['#8b5a2b', '#4a3a28', '#5a6070', '#7a8898'][tier];
+  // Helmet
+  const helmetColor = [null, '#3a2e1e', '#4a5560', '#778899'][tier];
+  // Shield color
+  const shieldColor = [null, '#7a4a18', '#2e4a7a', '#4a6090'][tier];
+
+  // Head
+  ctx.fillStyle = '#ffe0bd';
+  ctx.beginPath();
+  ctx.arc(0, -20 + (t > 0 ? -1 : 0), 3.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Helmet (tier 1+)
+  if (helmetColor) {
+    ctx.fillStyle = helmetColor;
+    ctx.beginPath();
+    ctx.arc(0, -21 + (t > 0 ? -1 : 0), 3.8, Math.PI, Math.PI * 2);
+    ctx.fill();
+    if (tier >= 2) {
+      // Nasal guard
+      ctx.strokeStyle = helmetColor;
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(0, -20); ctx.lineTo(0, -17);
+      ctx.stroke();
+    }
+    if (tier >= 3) {
+      // Visor / full face plate
+      ctx.fillStyle = helmetColor;
+      ctx.fillRect(-3, -21, 6, 4);
+    }
+  }
+
+  // Body
+  ctx.fillStyle = bodyColor;
+  ctx.strokeStyle = bodyColor;
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(0, -16);
+  ctx.lineTo(0, -6);
+  ctx.stroke();
+
+  // Armor chestplate detail (tier 2+)
+  if (tier >= 2) {
+    ctx.fillStyle = tier >= 3 ? '#9aaabb' : '#6a7a88';
+    ctx.fillRect(-3, -15, 6, 7);
+    ctx.strokeStyle = '#2a3040';
+    ctx.lineWidth = 0.8;
+    ctx.strokeRect(-3, -15, 6, 7);
+  }
+
+  // Legs
+  ctx.strokeStyle = bodyColor;
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  ctx.moveTo(0, -6); ctx.lineTo(-2 + sway * 0.3, -1);
+  ctx.moveTo(0, -6); ctx.lineTo(2 - sway * 0.3, -1);
+  ctx.stroke();
+
+  // Weapon arm (attack animation or idle)
+  if (t > 0) {
+    // Strike pose
+    const strikeOffX = t > 0.5 ? 8 : 3;
+    ctx.strokeStyle = '#ffe0bd';
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.moveTo(0, -14); ctx.lineTo(strikeOffX, -10);
+    ctx.stroke();
+
+    // Weapon
+    if (tier === 0) {
+      // Club / fist
+      ctx.fillStyle = '#6b3a1e';
+      ctx.fillRect(strikeOffX - 1, -13, 2, 8);
+      ctx.fillStyle = '#555';
+      ctx.beginPath(); ctx.arc(strikeOffX, -13, 2.5, 0, Math.PI * 2); ctx.fill();
+    } else if (tier === 1) {
+      // Sword
+      ctx.strokeStyle = '#ccccdd';
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.moveTo(strikeOffX, -16); ctx.lineTo(strikeOffX, -5);
+      ctx.stroke();
+      ctx.strokeStyle = '#8b5a2b';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(strikeOffX - 3, -11); ctx.lineTo(strikeOffX + 3, -11);
+      ctx.stroke();
+    } else if (tier === 2) {
+      // Spear
+      ctx.strokeStyle = '#8b5a2b';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(strikeOffX, -18); ctx.lineTo(strikeOffX, -4);
+      ctx.stroke();
+      ctx.fillStyle = '#aabbcc';
+      ctx.beginPath();
+      ctx.moveTo(strikeOffX, -22); ctx.lineTo(strikeOffX - 2, -17); ctx.lineTo(strikeOffX + 2, -17);
+      ctx.closePath(); ctx.fill();
+    } else {
+      // Halberd (plate tier)
+      ctx.strokeStyle = '#8b5a2b';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(strikeOffX, -20); ctx.lineTo(strikeOffX, -4);
+      ctx.stroke();
+      ctx.fillStyle = '#ccdde0';
+      ctx.beginPath();
+      ctx.moveTo(strikeOffX, -24); ctx.lineTo(strikeOffX - 3, -18);
+      ctx.lineTo(strikeOffX + 4, -20); ctx.lineTo(strikeOffX + 2, -15);
+      ctx.lineTo(strikeOffX - 2, -16);
+      ctx.closePath(); ctx.fill();
+    }
+  } else {
+    // Idle pose — weapon at rest
+    ctx.strokeStyle = '#ffe0bd';
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.moveTo(0, -14); ctx.lineTo(5, -10);
+    ctx.stroke();
+
+    if (tier === 0) {
+      ctx.strokeStyle = '#6b3a1e';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(5, -14); ctx.lineTo(5, -6);
+      ctx.stroke();
+    } else if (tier === 1) {
+      ctx.strokeStyle = '#ccccdd';
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.moveTo(5, -18); ctx.lineTo(5, -6);
+      ctx.stroke();
+      ctx.strokeStyle = '#8b5a2b';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(2, -13); ctx.lineTo(8, -13);
+      ctx.stroke();
+    } else {
+      ctx.strokeStyle = '#8b5a2b';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(5, -21); ctx.lineTo(5, -6);
+      ctx.stroke();
+      ctx.fillStyle = tier >= 3 ? '#ccdde0' : '#aabbcc';
+      ctx.beginPath();
+      ctx.moveTo(5, -25); ctx.lineTo(3, -20); ctx.lineTo(7, -20);
+      ctx.closePath(); ctx.fill();
+    }
+  }
+
+  // Shield on off-hand (tier 1+)
+  if (shieldColor) {
+    ctx.strokeStyle = '#ffe0bd';
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.moveTo(0, -14); ctx.lineTo(-5, -10);
+    ctx.stroke();
+    ctx.fillStyle = shieldColor;
+    ctx.strokeStyle = '#111';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(-5, -15); ctx.lineTo(-9, -10); ctx.lineTo(-5, -5); ctx.lineTo(-1, -10);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    if (tier >= 2) {
+      // Boss / emblem on shield
+      ctx.fillStyle = '#ffcc44';
+      ctx.beginPath(); ctx.arc(-5, -10, 1.5, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+
+  ctx.restore();
+}
+
 function drawCastle(ctx) {
   const cx = castleX();
   const gy = groundY();
@@ -4381,17 +4654,20 @@ function drawCastle(ctx) {
     if (UPGRADES.archery.built) {
       drawArcheryBastion(ctx, cx - 15, wallY, UPGRADES.archery.count, game.archerAttackAnim || 0);
     }
+    if (UPGRADES.guard.built) {
+      drawGuardTower(ctx, cx + availW * 0.06, wallY, UPGRADES.guard.count, UPGRADES.guard.damageLevel || 0, game.guardAttackAnim || 0);
+    }
     if (UPGRADES.mana.built) {
       drawWizardSpire(ctx, cx + availW * 0.22, wallY, UPGRADES.mana.count, game.wizardAttackAnim || 0);
     }
     if (UPGRADES.temple.built) {
-      drawConversionTemple(ctx, cx + availW * 0.48, wallY);
+      drawConversionTemple(ctx, cx + availW * 0.42, wallY);
     }
     if (UPGRADES.workshop.built) {
-      drawWorkshopForge(ctx, cx + availW * 0.72, wallY, UPGRADES.workshop.count);
+      drawWorkshopForge(ctx, cx + availW * 0.62, wallY, UPGRADES.workshop.count);
     }
     if (UPGRADES.demo.built) {
-      drawDemolitionHut(ctx, cx + availW * 0.92, wallY, UPGRADES.demo.count);
+      drawDemolitionHut(ctx, cx + availW * 0.82, wallY, UPGRADES.demo.count);
     }
 
     // Conversion progress bars above the gate (one per active conversion).
@@ -4444,7 +4720,7 @@ function drawCastle(ctx) {
 function drawHUD(ctx) {
   if (!game) return;
   const w = canvas.width;
-  const hasRow2 = UPGRADES.mana.built || (UPGRADES.demo.built && UPGRADES.demo.count > 0) || game.converting.length > 0 || game.convertedUnits > 0 || game.yeetCombo > 0 || game.ultimateCharge > 0 || game.ultimateTimer > 0 || game.ultimateCooldown > 0;
+  const hasRow2 = UPGRADES.mana.built || (UPGRADES.demo.built && UPGRADES.demo.count > 0) || (UPGRADES.guard.built && UPGRADES.guard.count > 0) || game.converting.length > 0 || game.convertedUnits > 0 || game.yeetCombo > 0 || game.ultimateCharge > 0 || game.ultimateTimer > 0 || game.ultimateCooldown > 0;
   const barH = hasRow2 ? 50 : 36;
 
   // Top bar
@@ -4506,6 +4782,13 @@ function drawHUD(ctx) {
       const bTxt = `Bombers: ${UPGRADES.demo.count} (auto)`;
       ctx.fillText(bTxt, rx2, 41);
       rx2 += ctx.measureText(bTxt).width + 24;
+    }
+
+    if (UPGRADES.guard.built && UPGRADES.guard.count > 0) {
+      ctx.fillStyle = '#aabbcc';
+      const gTxt = `Guards: ${UPGRADES.guard.count} (defending)`;
+      ctx.fillText(gTxt, rx2, 41);
+      rx2 += ctx.measureText(gTxt).width + 24;
     }
 
     if (game.converting.length > 0 || game.convertedUnits > 0) {
@@ -4912,6 +5195,35 @@ function gameLoop(timestamp) {
     }
   }
 
+  // Guards attack nearby enemies at the castle entrance.
+  if (UPGRADES.guard.built && UPGRADES.guard.count > 0 && game.waveActive) {
+    const guardFireRate = Math.max(0.35, 2.2 / UPGRADES.guard.count);
+    game.guardTimer += dt;
+    if (game.guardTimer >= guardFireRate) {
+      game.guardTimer = 0;
+      const guardX = castleX() - 20;
+      const guardRange = 130;
+      let closest = null;
+      let closestDist = Infinity;
+      for (const e of game.enemies) {
+        if (e.dead || e.grabbed || e.flying) continue;
+        const d = Math.abs(e.x - guardX);
+        if (d > guardRange) continue;
+        if (d < closestDist) { closestDist = d; closest = e; }
+      }
+      if (closest) {
+        const guardDamage = 2 + UPGRADES.guard.damageLevel * UPGRADES.guard.damagePerLevel;
+        closest.takeDamage(guardDamage, 'guard');
+        game.guardAttackAnim = 0.4;
+        for (let j = 0; j < 4; j++) {
+          const a = Math.random() * Math.PI * 2;
+          spawnParticle(closest.x, groundY() - 12 * closest.size, Math.cos(a) * 40, Math.sin(a) * 40 - 20, '#bbccdd', 0.3, 2);
+        }
+      }
+    }
+  }
+  if (game.guardAttackAnim > 0) game.guardAttackAnim = Math.max(0, game.guardAttackAnim - dt);
+
   // Update particles
   for (const p of game.particles) p.update(dt);
   game.particles = game.particles.filter(p => p.life > 0);
@@ -5136,7 +5448,8 @@ function updateShop() {
     } else if (!u.built) {
       btns = `<button class="shop-btn" ${game.score >= u.buildCost ? '' : 'disabled'} onclick="buyBuilding('${key}')">BUILD (${u.buildCost} pts)</button>`;
     } else if (u.convertBased) {
-      btns = `<button class="shop-btn" ${game.convertedUnits > 0 ? '' : 'disabled'} onclick="assignConvert('${key}')">ASSIGN CONVERT (+1 ${u.unitName})</button>`;
+      const guardAtCap = key === 'guard' && u.count >= (u.baseCapacity + u.statLevel * u.statPerLevel);
+      btns = `<button class="shop-btn" ${game.convertedUnits > 0 && !guardAtCap ? '' : 'disabled'} onclick="assignConvert('${key}')">ASSIGN CONVERT (+1 ${u.unitName})${guardAtCap ? ' [AT CAPACITY]' : ''}</button>`;
       if (u.damageUpgradeable) {
         if (u.damageLevel >= MAX_TOWER_DAMAGE_LEVEL) {
           btns += `<button class="shop-btn" disabled>MAX ${u.unitName.toUpperCase()} DAMAGE</button>`;
@@ -5173,6 +5486,8 @@ function updateShop() {
           statInfoParts.push(`Spell dmg x${(1 + u.damageLevel * u.damagePerLevel).toFixed(2)}`);
         } else if (key === 'demo') {
           statInfoParts.push(`Blast dmg: ${(15 + u.damageLevel * u.damagePerLevel).toFixed(1)}`);
+        } else if (key === 'guard') {
+          statInfoParts.push(`Guard dmg: ${(2 + u.damageLevel * u.damagePerLevel).toFixed(1)}`);
         }
         statInfoParts.push(`Damage lvl: ${u.damageLevel}/${MAX_TOWER_DAMAGE_LEVEL}`);
       }
@@ -5183,13 +5498,20 @@ function updateShop() {
           statInfoParts.push(`Radius x${(1 + u.statLevel * u.statPerLevel).toFixed(2)}`);
         } else if (key === 'demo') {
           statInfoParts.push(`Blast radius: ${(80 + u.statLevel * u.statPerLevel).toFixed(0)}`);
+        } else if (key === 'guard') {
+          statInfoParts.push(`Capacity: ${(u.baseCapacity + u.statLevel * u.statPerLevel).toFixed(0)}`);
         } else {
           statInfoParts.push(`${u.statName}: ${u.statLevel}`);
         }
         statInfoParts.push(`${u.statName} lvl: ${u.statLevel}/${MAX_TOWER_STAT_LEVEL}`);
       }
       const upgradeInfo = statInfoParts.length > 0 ? ` | ${statInfoParts.join(' | ')}` : '';
-      countText = `${u.unitName}s: ${u.count} | Converts available: ${game.convertedUnits} | Upkeep: ${u.upkeep} pts/unit/wave${upgradeInfo}`;
+      if (key === 'guard') {
+        const cap = u.baseCapacity + u.statLevel * u.statPerLevel;
+        countText = `${u.unitName}s: ${u.count}/${cap} | Converts available: ${game.convertedUnits} | Upkeep: ${u.upkeep} pts/unit/wave${upgradeInfo}`;
+      } else {
+        countText = `${u.unitName}s: ${u.count} | Converts available: ${game.convertedUnits} | Upkeep: ${u.upkeep} pts/unit/wave${upgradeInfo}`;
+      }
     } else {
       countText = `${u.unitName}s: ${u.count} | Upkeep: ${u.upkeep} pts/unit/wave`;
     }
@@ -5296,6 +5618,10 @@ function buyUnit(key) {
 function assignConvert(key) {
   const u = UPGRADES[key];
   if (game.convertedUnits > 0 && u.built) {
+    if (key === 'guard') {
+      const cap = u.baseCapacity + u.statLevel * u.statPerLevel;
+      if (u.count >= cap) return;
+    }
     game.convertedUnits--;
     u.count++;
     updateShop();
@@ -5321,8 +5647,10 @@ function startNextWave() {
   game.waveActive = true;
   game.wizardTimer = 0;
   game.archeryTimer = 0;
+  game.guardTimer = 0;
   game.archerAttackAnim = 0;
   game.wizardAttackAnim = 0;
+  game.guardAttackAnim = 0;
 }
 
 function gameOver() {
