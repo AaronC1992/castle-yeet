@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
 <title>Castle Yeet</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -2248,14 +2249,15 @@ class Enemy {
     if (cause !== 'explosion') {
       spawnDeadBodyFromEnemy(this, cause);
     }
+
+    const chunkY = this.flying ? this.y : terrainYAt(this.x) - 8;
+    const explosive = cause === 'explosion';
+    const impulse = explosive ? 1.65 : 1;
+    const baseSize = explosive ? (2.9 + this.size * 1.15) : (2 + this.size);
     if (cause !== 'fall') {
-      const chunkY = this.flying ? this.y : terrainYAt(this.x) - 8;
-      const explosive = cause === 'explosion';
       const parts = explosive
         ? ['head', 'torso', 'limb', 'limb', 'limb', 'limb']
         : ['head', 'torso', 'limb', 'limb'];
-      const impulse = explosive ? 1.65 : 1;
-      const baseSize = explosive ? (2.9 + this.size * 1.15) : (2 + this.size);
       for (const part of parts) {
         game.goreChunks.push(new GoreChunk(this.x, chunkY, baseSize, part, impulse, this.color));
       }
