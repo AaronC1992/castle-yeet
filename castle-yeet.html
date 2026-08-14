@@ -4353,13 +4353,13 @@ function drawGuardTower(ctx, bx, bldgY, count, damageLevel, attackAnim) {
     ctx.fillText(count.toString(), bx, bldgY + 25);
   }
 
-  // Guards stationed on the tower
+  // Guards stationed on the ground in front of the tower
   if (count > 0) {
     const displayed = Math.min(4, Math.max(1, count));
-    const spacing = displayed > 1 ? 28 / (displayed - 1) : 0;
+    const spacing = displayed > 1 ? 22 : 0;
     for (let i = 0; i < displayed; i++) {
-      const gx = displayed === 1 ? bx : (bx - 14 + i * spacing);
-      const gy = bldgY - 18;
+      const gx = bx - 30 - i * spacing;
+      const gy = bldgY;
       drawGuardUnit(ctx, gx, gy, damageLevel, attackAnim, i);
     }
   }
@@ -4655,7 +4655,7 @@ function drawCastle(ctx) {
       drawArcheryBastion(ctx, cx - 15, wallY, UPGRADES.archery.count, game.archerAttackAnim || 0);
     }
     if (UPGRADES.guard.built) {
-      drawGuardTower(ctx, cx + availW * 0.06, wallY, UPGRADES.guard.count, UPGRADES.guard.damageLevel || 0, game.guardAttackAnim || 0);
+      drawGuardTower(ctx, cx - 60, gy, UPGRADES.guard.count, UPGRADES.guard.damageLevel || 0, game.guardAttackAnim || 0);
     }
     if (UPGRADES.mana.built) {
       drawWizardSpire(ctx, cx + availW * 0.22, wallY, UPGRADES.mana.count, game.wizardAttackAnim || 0);
@@ -4786,7 +4786,7 @@ function drawHUD(ctx) {
 
     if (UPGRADES.guard.built && UPGRADES.guard.count > 0) {
       ctx.fillStyle = '#aabbcc';
-      const gTxt = `Guards: ${UPGRADES.guard.count} (defending)`;
+      const gTxt = `Guards: ${UPGRADES.guard.count} (front line)`;
       ctx.fillText(gTxt, rx2, 41);
       rx2 += ctx.measureText(gTxt).width + 24;
     }
@@ -5201,8 +5201,8 @@ function gameLoop(timestamp) {
     game.guardTimer += dt;
     if (game.guardTimer >= guardFireRate) {
       game.guardTimer = 0;
-      const guardX = castleX() - 20;
-      const guardRange = 130;
+      const guardX = castleX() - 60;
+      const guardRange = 160;
       let closest = null;
       let closestDist = Infinity;
       for (const e of game.enemies) {
