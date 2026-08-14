@@ -4445,15 +4445,6 @@ function gameLoop(timestamp) {
   for (const e of game.enemies) e.update(dt);
   game.enemies = game.enemies.filter(e => !e.dead);
 
-  // Once the timer expires, stop spawning and let the player clear the field.
-  if (game.waveActive && game.roundTimeLeft <= 0) {
-    if (game.grabbedEnemy && !game.grabbedEnemy.dead) {
-      game.grabbedEnemy.grabbed = false;
-      game.grabbedEnemy = null;
-      canvas.style.cursor = 'default';
-    }
-  }
-
   // Grabbed enemy follows mouse
   if (game.grabbedEnemy && !game.grabbedEnemy.dead) {
     game.grabbedEnemy.x = game.mouseX;
