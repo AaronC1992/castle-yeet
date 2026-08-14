@@ -1272,7 +1272,7 @@ const UPGRADES = {
   },
   archery: {
     name: 'Guys With Bows',
-    desc: 'Assign converts as archers. They auto-shoot arrows at enemies. More archers = faster firing.',
+    desc: 'Assign converts as archers. They auto-shoot arrows at enemies. Upgrade for steady DPS and longer range.',
     buildCost: 2500,
     unitCost: 0,
     unitName: 'Archer',
@@ -1282,9 +1282,15 @@ const UPGRADES = {
     convertBased: true,
     damageUpgradeable: true,
     damageLevel: 0,
-    damagePerLevel: 0.5,
-    damageUpgradeBaseCost: 1200,
-    damageUpgradeStep: 750,
+    damagePerLevel: 0.3,
+    damageUpgradeBaseCost: 1400,
+    damageUpgradeStep: 850,
+    statUpgradeable: true,
+    statName: 'Range',
+    statLevel: 0,
+    statPerLevel: 35,
+    statUpgradeBaseCost: 1100,
+    statUpgradeStep: 700,
   },
   mana: {
     name: 'Suspicious Wizard Stuff',
@@ -1298,9 +1304,15 @@ const UPGRADES = {
     convertBased: true,
     damageUpgradeable: true,
     damageLevel: 0,
-    damagePerLevel: 0.2,
-    damageUpgradeBaseCost: 3000,
-    damageUpgradeStep: 1500,
+    damagePerLevel: 0.16,
+    damageUpgradeBaseCost: 3400,
+    damageUpgradeStep: 1800,
+    statUpgradeable: true,
+    statName: 'Spell Radius',
+    statLevel: 0,
+    statPerLevel: 0.08,
+    statUpgradeBaseCost: 2600,
+    statUpgradeStep: 1300,
   },
   workshop: {
     name: 'Unpaid Maintenance Crew',
@@ -1315,7 +1327,7 @@ const UPGRADES = {
   },
   demo: {
     name: 'Boom School',
-    desc: 'Assign converts as bombers. They auto-deploy and explode on contact with enemies.',
+    desc: 'Assign converts as bombers. They auto-deploy and explode on contact with enemies. Upgrade blast damage and radius.',
     buildCost: 6000,
     unitCost: 0,
     unitName: 'Bomber',
@@ -1323,6 +1335,17 @@ const UPGRADES = {
     built: false,
     count: 0,
     convertBased: true,
+    damageUpgradeable: true,
+    damageLevel: 0,
+    damagePerLevel: 2.5,
+    damageUpgradeBaseCost: 3200,
+    damageUpgradeStep: 1600,
+    statUpgradeable: true,
+    statName: 'Blast Radius',
+    statLevel: 0,
+    statPerLevel: 10,
+    statUpgradeBaseCost: 2600,
+    statUpgradeStep: 1300,
   },
   wall: {
     name: 'Make Wall More Wall',
@@ -1340,6 +1363,7 @@ const BASE_CONVERSION_SLOTS = 1;
 const MAX_CONVERSION_SLOTS = 10;
 const CONVERSION_DURATION_SECONDS = 50;
 const MAX_TOWER_DAMAGE_LEVEL = 10;
+const MAX_TOWER_STAT_LEVEL = 10;
 const GAME_TIPS = [
   'TIP: Increase game speed for higher payouts and faster rounds.',
   'TIP: Repair the castle often so your converts stay safe and your defense lasts longer.',
@@ -3059,14 +3083,16 @@ class Bomber {
     this.exploded = true;
     this.dead = true;
     playExplosion();
-    const radius = 80;
+    const bomberUpgrade = UPGRADES.demo;
+    const radius = 80 + bomberUpgrade.statLevel * bomberUpgrade.statPerLevel;
+    const damage = 15 + bomberUpgrade.damageLevel * bomberUpgrade.damagePerLevel;
     // Damage nearby enemies
     for (const e of game.enemies) {
       if (e.dead || e.grabbed || e.flying) continue;
       const dx = e.x - this.x;
       const dy = (e.flying ? e.y : terrainYAt(e.x)) - this.y;
       if (Math.sqrt(dx*dx + dy*dy) < radius) {
-        e.takeDamage(15, 'explosion');
+        e.takeDamage(damage, 'explosion');
       }
     }
     // Explosion particles
@@ -3113,10 +3139,10 @@ class Bomber {
 }
 
 class SpellZone {
-  constructor(x, y, wizardCount, damageMult = 1) {
+  constructor(x, y, wizardCount, damageMult = 1, radiusMult = 1) {
     this.x = x;
     this.y = y;
-    this.radius = 35 + wizardCount * 8;
+    this.radius = (35 + wizardCount * 8) * radiusMult;
     this.dps = (1.5 + wizardCount * 0.8) * damageMult;
     // Keep attack visuals brief so only corpse smolder persists.
     this.life = 0.55 + wizardCount * 0.12;
@@ -3365,6 +3391,9 @@ function initGame() {
     UPGRADES[key].count = 0;
     if (typeof UPGRADES[key].damageLevel === 'number') {
       UPGRADES[key].damageLevel = 0;
+    }
+    if (typeof UPGRADES[key].statLevel === 'number') {
+      UPGRADES[key].statLevel = 0;
     }
   }
 
@@ -4775,11 +4804,11 @@ function gameLoop(timestamp) {
       let closestDist = Infinity;
       const towerX = castleX() - 25;
       const towerY = groundY() - groundY() * 0.45 - 20;
-      const halfwayX = canvas.width / 2;
+      const archerRange = 360 + UPGRADES.archery.statLevel * UPGRADES.archery.statPerLevel;
       for (const e of game.enemies) {
         if (e.dead || e.grabbed || e.flying) continue;
-        if (e.x < halfwayX) continue; // out of range
         const d = Math.abs(e.x - towerX);
+        if (d > archerRange) continue;
         if (d < closestDist) { closestDist = d; closest = e; }
       }
       if (closest) {
@@ -4871,7 +4900,8 @@ function gameLoop(timestamp) {
       if (closest) {
         const spellY = closest.flying ? closest.y : groundY() - 12 * closest.size;
         const wizardDamageMult = 1 + UPGRADES.mana.damageLevel * UPGRADES.mana.damagePerLevel;
-        game.spellZones.push(new SpellZone(closest.x, spellY, UPGRADES.mana.count, wizardDamageMult));
+        const wizardRadiusMult = 1 + UPGRADES.mana.statLevel * UPGRADES.mana.statPerLevel;
+        game.spellZones.push(new SpellZone(closest.x, spellY, UPGRADES.mana.count, wizardDamageMult, wizardRadiusMult));
         playWizardCast();
         game.wizardAttackAnim = 0.65;
         for (let j = 0; j < 8; j++) {
@@ -5115,6 +5145,14 @@ function updateShop() {
           btns += `<button class="shop-btn" ${game.score >= dmgCost ? '' : 'disabled'} onclick="buyTowerDamageUpgrade('${key}')">UPGRADE ${u.unitName.toUpperCase()} DAMAGE (${dmgCost} pts)</button>`;
         }
       }
+      if (u.statUpgradeable) {
+        if (u.statLevel >= MAX_TOWER_STAT_LEVEL) {
+          btns += `<button class="shop-btn" disabled>MAX ${u.statName.toUpperCase()}</button>`;
+        } else {
+          const statCost = getTowerStatUpgradeCost(key);
+          btns += `<button class="shop-btn" ${game.score >= statCost ? '' : 'disabled'} onclick="buyTowerStatUpgrade('${key}')">UPGRADE ${u.statName.toUpperCase()} (${statCost} pts)</button>`;
+        }
+      }
     } else {
       btns = `<button class="shop-btn" ${game.score >= u.unitCost ? '' : 'disabled'} onclick="buyUnit('${key}')">+1 ${u.unitName} (${u.unitCost} pts)</button>`;
     }
@@ -5127,12 +5165,31 @@ function updateShop() {
     } else if (!u.built) {
       countText = `Not built | Upkeep once built: ${u.upkeep} pts/${u.unitName}/wave`;
     } else if (u.convertBased) {
-      const damageInfo = u.damageUpgradeable
-        ? (key === 'archery'
-          ? ` | Arrow dmg: ${(1 + u.damageLevel * u.damagePerLevel).toFixed(1)} | Damage lvl: ${u.damageLevel}/${MAX_TOWER_DAMAGE_LEVEL}`
-          : ` | Spell dmg x${(1 + u.damageLevel * u.damagePerLevel).toFixed(2)} | Damage lvl: ${u.damageLevel}/${MAX_TOWER_DAMAGE_LEVEL}`)
-        : '';
-      countText = `${u.unitName}s: ${u.count} | Converts available: ${game.convertedUnits} | Upkeep: ${u.upkeep} pts/unit/wave${damageInfo}`;
+      const statInfoParts = [];
+      if (u.damageUpgradeable) {
+        if (key === 'archery') {
+          statInfoParts.push(`Arrow dmg: ${(1 + u.damageLevel * u.damagePerLevel).toFixed(1)}`);
+        } else if (key === 'mana') {
+          statInfoParts.push(`Spell dmg x${(1 + u.damageLevel * u.damagePerLevel).toFixed(2)}`);
+        } else if (key === 'demo') {
+          statInfoParts.push(`Blast dmg: ${(15 + u.damageLevel * u.damagePerLevel).toFixed(1)}`);
+        }
+        statInfoParts.push(`Damage lvl: ${u.damageLevel}/${MAX_TOWER_DAMAGE_LEVEL}`);
+      }
+      if (u.statUpgradeable) {
+        if (key === 'archery') {
+          statInfoParts.push(`Range: ${(360 + u.statLevel * u.statPerLevel).toFixed(0)}`);
+        } else if (key === 'mana') {
+          statInfoParts.push(`Radius x${(1 + u.statLevel * u.statPerLevel).toFixed(2)}`);
+        } else if (key === 'demo') {
+          statInfoParts.push(`Blast radius: ${(80 + u.statLevel * u.statPerLevel).toFixed(0)}`);
+        } else {
+          statInfoParts.push(`${u.statName}: ${u.statLevel}`);
+        }
+        statInfoParts.push(`${u.statName} lvl: ${u.statLevel}/${MAX_TOWER_STAT_LEVEL}`);
+      }
+      const upgradeInfo = statInfoParts.length > 0 ? ` | ${statInfoParts.join(' | ')}` : '';
+      countText = `${u.unitName}s: ${u.count} | Converts available: ${game.convertedUnits} | Upkeep: ${u.upkeep} pts/unit/wave${upgradeInfo}`;
     } else {
       countText = `${u.unitName}s: ${u.count} | Upkeep: ${u.upkeep} pts/unit/wave`;
     }
@@ -5196,6 +5253,23 @@ function buyTowerDamageUpgrade(key) {
   if (game.score >= cost) {
     game.score -= cost;
     u.damageLevel++;
+    updateShop();
+  }
+}
+
+function getTowerStatUpgradeCost(key) {
+  const u = UPGRADES[key];
+  if (!u || !u.statUpgradeable) return Infinity;
+  return u.statUpgradeBaseCost + u.statLevel * u.statUpgradeStep;
+}
+
+function buyTowerStatUpgrade(key) {
+  const u = UPGRADES[key];
+  if (!u || !u.built || !u.statUpgradeable || u.statLevel >= MAX_TOWER_STAT_LEVEL) return;
+  const cost = getTowerStatUpgradeCost(key);
+  if (game.score >= cost) {
+    game.score -= cost;
+    u.statLevel++;
     updateShop();
   }
 }
